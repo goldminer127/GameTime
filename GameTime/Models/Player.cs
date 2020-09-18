@@ -52,6 +52,7 @@ namespace GameTime.Models
         public List<long> GuildsOptedIn { get; set; } = new List<long>();
         public bool AuthroizedAdmin { get; set; } = false;
         public bool AuthroizedMod { get; set; } = false;
+        public bool IsDonor { get; set; } = false;
         public Player()
         {
             Inventory.Add(Crate.StarterItem);
