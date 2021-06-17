@@ -1,15 +1,13 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus;
+using DSharpPlus.Interactivity.Extensions;
 using GameTime.Extensions;
 using GameTime.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices.ComTypes;
 
 namespace GameTime.Commands
 {
@@ -17,34 +15,55 @@ namespace GameTime.Commands
     {
         [Command("inventory"), Aliases("i", "inv")]
         [Description("Displays the user's inventory.")]
-        public async Task Inventory(CommandContext ctx, Int64 id = 0)
+        public async Task Inventory(CommandContext ctx, [RemainingText]string playerName = null)
         {
             var embed = new DiscordEmbedBuilder();
-            id = id == 0 ? Convert.ToInt64(ctx.Member.Id) : id;
-            var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
-            var member = await ctx.Guild.GetMemberAsync(Convert.ToUInt64(id));
-            embed.Title = $"{ member.Username }'s Inventory";
-            if (user == null && ctx.Member.IsBot != true)
+            Player user = null;
+            long id = 0;
+            if (playerName != null)
             {
-                embed = NewPlayer(ctx, embed, member.Id);
+                try
+                {
+                    id = Convert.ToInt64(playerName);
+                    user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
+                }
+                catch
+                {
+                    user = Bot.PlayerDatabase.GetPlayerByName(playerName);
+                    if (user != null)
+                        id = user.ID;
+                }
+            }
+            else
+            {
+                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.User.Id));
+                id = (long)ctx.User.Id;
+            }
+            if (user == null && ctx.Member.IsBot != true && (long)ctx.Member.Id == id)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
             else if (user == null && id != Convert.ToInt64(ctx.Member.Id))
             {
-                embed.Title = "No user can be found";
+                embed.Title = "No user can be found (Names are case sensitive)";
                 embed.Color = DiscordColor.Red;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
             else if (ctx.Member.IsBot != true)
             {
-                if (user.Name != ctx.Member.Username)
+                if(user.ID == (long)ctx.Member.Id)
                 {
                     user.Name = ctx.Member.Username;
+                    user.Image = ctx.Member.AvatarUrl;
                 }
+                embed.Title = $"{ user.Name }'s Inventory";
                 Bot.PlayerDatabase.UpdatePlayer(user);
                 var totalItems = 0;
                 string common = "", uncommon = "", rare = "", epic = "", unique = "";
                 decimal inventoryValue = 0;
+                var unreadMail = 0;
                 foreach (var item in user.Inventory.OrderBy(y => y.Name).OrderBy(x => x.Rarity))
                 {
                     switch (item.Rarity)
@@ -65,7 +84,7 @@ namespace GameTime.Commands
                             unique += $"{item.Name} x{item.Multiple}\n";
                             break;
                     }
-                    inventoryValue += item.Value;
+                    inventoryValue += item.Value*item.Multiple;
                     totalItems += item.Multiple;
                 }
                 var isOptedIn = "No";
@@ -76,24 +95,40 @@ namespace GameTime.Commands
                         isOptedIn = "Yes";
                     }
                 }
+                var attachmentName = "None";
+                if(user.ActiveAttachment != null)
+                {
+                    attachmentName = user.ActiveAttachment.Name;
+                }
+                foreach (var mail in user.Mail)
+                {
+                    if(!mail.MailRead)
+                    {
+                        unreadMail++;
+                    }
+                }
                 common = String.IsNullOrEmpty(common) ? "None" : common;
                 uncommon = String.IsNullOrEmpty(uncommon) ? "None" : uncommon;
                 rare = String.IsNullOrEmpty(rare) ? "None" : rare;
                 epic = String.IsNullOrEmpty(epic) ? "None" : epic;
                 unique = String.IsNullOrEmpty(unique) ? "None" : unique;
-                embed.AddField("Balance:", $"${user.Balance.ToString("###,###,###,###,###,##0.#0")}", false);
-                embed.AddField("Health:", user.Health.ToString(), false);
-                embed.AddField("Active Protection:", user.ProtectionName, false);
-                embed.AddField("Protection Health:", user.Protection.ToString(), false);
-                embed.AddField("Opted In:", $"{isOptedIn}", false);
+                embed.Description = $"Inventory of {user.Name}";
+                embed.AddField("Health:", user.Health.ToString(), true);
+                embed.AddField("Protection:", $"{user.ProtectionName}: {user.Protection}", true);
+                embed.AddField("Active Attachment:", $"{attachmentName}", true);
+                embed.AddField("Balance:", $"${user.Balance:###,###,###,###,###,##0.#0}", true);
+                embed.AddField(" ‏‏‎ ", " ‏‏‎ ", true);//Contains special whitespace
+                embed.AddField("Opted In:", $"{isOptedIn}", true);
+                embed.AddField(" ‏‏‎ ", " ‏‏‎ ", false);//Contains special whitespace
                 embed.AddField("Commons:", common, true);
                 embed.AddField("Uncommons:", uncommon, true);
                 embed.AddField("Rares:", rare, true);
                 embed.AddField("Epics:", epic, true);
                 embed.AddField("Uniques:", unique, true);
-                embed.WithThumbnail(member.AvatarUrl);
-
-                embed.WithFooter($"Item Count: {totalItems}\nInventory Value: ${inventoryValue.ToString("###,###,###,###,###,##0.#0")}");
+                embed.AddField(" ‏‏‎ ", " ‏‏‎ ", true);//Contains special whitespace
+                embed.WithThumbnail(user.Image);
+                embed.WithFooter($"Item Count: {totalItems}\nInventory Value: ${inventoryValue.ToString("###,###,###,###,###,##0.#0")}\nHas {unreadMail} unread mail.");
+                embed.Color = new DiscordColor(user.PlayerColor);
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
             else
@@ -110,8 +145,8 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -121,10 +156,7 @@ namespace GameTime.Commands
             }
             else if(ctx.Member.IsBot != true)
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 var obtained = "";
                 var interactivity = ctx.Client.GetInteractivity();
                 if (String.IsNullOrEmpty(itemName))
@@ -139,9 +171,16 @@ namespace GameTime.Commands
                     var split = itemName.ToLower().Split(" x");
                     if (split.Count() > 1)
                     {
-                        if (Int32.Parse(split[1]) > 0)
+                        if (int.Parse(split[1]) > 0)
                         {
-                            amount = Int32.Parse(split[1]);
+                            try
+                            {
+                                amount = int.Parse(split[1]);
+                            }
+                            catch
+                            {
+                                amount = 1;
+                            }
                         }
                         itemName = split[0];
                     }
@@ -181,32 +220,35 @@ namespace GameTime.Commands
                         {
                             if (item is Crate crate)
                             {
-                                decimal value = 0m;
+                                var value = 0m;
+                                var totalitems = 0;
+                                List<Item> items = new List<Item>();
                                 for (var i = 0; i < amount; i++)
                                 {
-                                    var crateItem = Crate.OpenCrate(crate.Rarity);
-                                    var isItemInInventory = false;
-                                    foreach (var thing in user.Inventory)
-                                    {
-                                        if (thing.ID == crateItem.ID)
-                                        {
-                                            isItemInInventory = true;
-                                            crateItem = thing;
-                                            break;
-                                        }
-                                    }
-                                    if (isItemInInventory == false)
-                                    {
-                                        user.Inventory.Add(crateItem);
-                                        value += crateItem.Value;
-                                    }
+                                    var citem = Crate.OpenCrate(crate.Rarity);
+                                    if (items.Count <= 0)
+                                        items.Add(citem);
                                     else
                                     {
-                                        crateItem.Multiple++;
-                                        value += crateItem.Value;
+                                        var inList = false;
+                                        foreach (Item it in items)
+                                        {
+                                            if (it.ID == citem.ID)
+                                            {
+                                                it.Multiple++;
+                                                inList = true;
+                                                break;
+                                            }
+                                            
+                                        }
+                                        if(inList == false)
+                                        {
+                                            items.Add(citem);
+                                        }
                                     }
-                                    embed.Title = $"You got:";
-                                    obtained += $"[{crateItem.Rarity}] {crateItem.Name}\n";
+                                }
+                                if(crate.Multiple > 1)
+                                {
                                     embed.Color = crate.Rarity switch
                                     {
                                         Rarity.Common => DiscordColor.Gray,
@@ -215,17 +257,55 @@ namespace GameTime.Commands
                                         Rarity.Epic => DiscordColor.Gold,
                                         _ => DiscordColor.Orange
                                     };
-                                    if (crate.Multiple > 1)
+                                }
+                                if (crate.Multiple - amount >= 1)
+                                {
+                                    crate.Multiple -= amount;
+                                }
+                                else
+                                {
+                                    user.Inventory.Remove(crate);
+                                }
+                                foreach(Item it in items)
+                                {
+                                    var isItemInInventory = false;
+                                    Item pitem = null;
+                                    foreach (var thing in user.Inventory)
                                     {
-                                        crate.Multiple--;
+                                        if (thing.ID == it.ID)
+                                        {
+                                            isItemInInventory = true;
+                                            pitem = thing;
+                                            break;
+                                        }
+                                    }
+                                    if (isItemInInventory == false)
+                                    {
+                                        user.Inventory.Add(it);
+                                        value += it.Value * it.Multiple;
                                     }
                                     else
                                     {
-                                        user.Inventory.Remove(crate);
+                                        pitem.Multiple += it.Multiple;
+                                        value += it.Value * it.Multiple;
                                     }
-                                    Bot.PlayerDatabase.UpdatePlayer(user);
+                                    if(crate.Multiple == 1)
+                                    {
+                                        embed.Color = it.Rarity switch
+                                        {
+                                            Rarity.Common => DiscordColor.Gray,
+                                            Rarity.Uncommon => DiscordColor.DarkGreen,
+                                            Rarity.Rare => DiscordColor.Blue,
+                                            Rarity.Epic => DiscordColor.Gold,
+                                            _ => DiscordColor.Orange
+                                        };
+                                    }
+                                    obtained += $"[{it.Rarity}] - {it.Name} x{it.Multiple}\n";
+                                    totalitems += it.Multiple;
                                 }
-                                obtained += $"Total value: ${value.ToString("###,###,###,###,###,##0.#0")}";
+                                embed.Title = $"{user.Name} got:";
+                                Bot.PlayerDatabase.UpdatePlayer(user);
+                                embed.WithFooter($"Total value: ${value.ToString("###,###,###,###,###,##0.#0")}\nTotal items {totalitems}");
                                 embed.Description = $"{obtained}";
                             }
                             else if (item is Weapon weapon)
@@ -269,7 +349,16 @@ namespace GameTime.Commands
                                             if (weapon.WeaponType == WeaponType.Melee || (weapon.WeaponType == WeaponType.Firearm || weapon.WeaponType == WeaponType.HeavyFirearm) && hasAmmo == true)
                                             {
                                                 user.CooldownStartTime = DateTime.Now;
-                                                user.CooldownLength = weapon.Cooldown;
+                                                if (user.ActiveAttachment != null && user.ActiveAttachment.Ability == Addon.ReduceCooldown)
+                                                {
+                                                    var totalTime = (weapon.Cooldown.TotalMinutes * (double)((double)(100 - user.ActiveAttachment.Intensity) / 100));
+                                                    var cooldown = TimeSpan.FromMinutes(totalTime);
+                                                    user.CooldownLength = cooldown;
+                                                }
+                                                else
+                                                {
+                                                    user.CooldownLength = weapon.Cooldown;
+                                                }
                                                 user.CooldownEndTime = user.CooldownStartTime.Add(user.CooldownLength);
                                                 Bot.PlayerDatabase.UpdatePlayer(user);
                                                 if (weapon.Special == Special.SpreadShot)
@@ -354,9 +443,9 @@ namespace GameTime.Commands
                                                         embed.Title = "Target List:";
                                                         embed.Description = $"A random target will be chosen for you if you do not answer in 60 seconds.\nRespond with a number like a normal attack. The inventory closest to this message is 1 and continues to 3.";
                                                         await ctx.Channel.SendMessageAsync(embed: embed);
-                                                        await Inventory(ctx, allTargets[0].ID);
-                                                        await Inventory(ctx, allTargets[1].ID);
-                                                        await Inventory(ctx, allTargets[2].ID);
+                                                        await Inventory(ctx, allTargets[0].ID.ToString());
+                                                        await Inventory(ctx, allTargets[1].ID.ToString());
+                                                        await Inventory(ctx, allTargets[2].ID.ToString());
                                                         var selected = false;
                                                         while (selected == false)
                                                         {
@@ -556,7 +645,7 @@ namespace GameTime.Commands
                                 {
                                     embed.Title = $"You already equipped {armor.Name}";
                                     embed.Description = $"Your armor will protect you for {user.Protection} damage";
-                                    embed.Color = DiscordColor.Black;
+                                    embed.Color = new DiscordColor(user.PlayerColor);
                                 }
                                 else
                                 {
@@ -573,7 +662,7 @@ namespace GameTime.Commands
                                     Bot.PlayerDatabase.UpdatePlayer(user);
                                     embed.Title = $"You equipped {armor.Name}";
                                     embed.Description = $"Your armor will protect you for {armor.ProtectionRate} damage";
-                                    embed.Color = DiscordColor.Black;
+                                    embed.Color = new DiscordColor(user.PlayerColor);
                                 }
                             }
                             else if (item is Ammo ammo)
@@ -590,19 +679,19 @@ namespace GameTime.Commands
                                     if (attachment.Ability == Addon.HighestDamageIncrease)
                                     {
                                         embed.Title = $"You readied your {attachment.Name}";
-                                        embed.Description = ($"Your next weapon will do {attachment.Intensity} more damage.");
+                                        embed.Description = ($"Your next gun will do {attachment.Intensity} more damage.");
                                     }
                                     else if (attachment.Ability == Addon.ReduceCooldown)
                                     {
                                         embed.Title = $"You readied your {attachment.Name}";
-                                        embed.Description = ($"Your next weapon will have {attachment.Intensity}% less cooldown.");
+                                        embed.Description = ($"Your next gun will have {attachment.Intensity}% less cooldown.");
                                     }
                                     else if (attachment.Ability == Addon.IncreaseHitRate)
                                     {
                                         embed.Title = $"You readied your {attachment.Name}";
-                                        embed.Description = ($"Your next weapon will do {attachment.Intensity} more hit.");
+                                        embed.Description = ($"Your next gun will do {attachment.Intensity} more hit.");
                                     }
-                                    embed.Color = DiscordColor.Goldenrod;
+                                    embed.Color = new DiscordColor(user.PlayerColor);
                                     Bot.PlayerDatabase.UpdatePlayer(user);
                                 }
                                 else
@@ -651,42 +740,58 @@ namespace GameTime.Commands
                                     embed.Title = amount > 1 ? $"Your {amount} {utility.Name}s Got" : $"Your {utility.Name}s Got";
                                     Item copy = null;
                                     var isInInventory = false;
+                                    var inList = false;
+                                    List<Item> crates = new List<Item>();
                                     for (var loops = 0; loops < amount; loops++)
                                     {
                                         for (var loop = 0; loop < 5; loop++)
                                         {
-                                            var c = Crate.GetRandomCrate();
-                                            obtained += $"{c.Name}\n";
-                                            foreach (var thing in user.Inventory)
-                                            {
-                                                if (thing.ID == c.ID)
-                                                {
-                                                    copy = thing;
-                                                    isInInventory = true;
-                                                    break;
-                                                }
-                                            }
-                                            if (isInInventory == false)
-                                            {
-                                                user.Inventory.Add(c);
-                                            }
+                                            if (crates.Count == 0)
+                                                crates.Add(Crate.GetRandomCrate());
                                             else
                                             {
-                                                copy.Multiple++;
+                                                var flareItem = Crate.GetRandomCrate();
+                                                foreach (Item c in crates)
+                                                {
+                                                    if (c.ID == flareItem.ID)
+                                                    {
+                                                        inList = true;
+                                                        copy = c;
+                                                        break;
+                                                    }
+                                                }
+                                                if (inList == false)
+                                                    crates.Add(flareItem);
+                                                else
+                                                    copy.Multiple++;
+                                                inList = false;
                                             }
-                                            isInInventory = false;
-                                            Bot.PlayerDatabase.UpdatePlayer(user);
                                         }
-                                        if (utility.Multiple > 1)
-                                        {
-                                            utility.Multiple--;
-                                        }
-                                        else
-                                        {
-                                            user.Inventory.Remove(utility);
-                                        }
-                                        Bot.PlayerDatabase.UpdatePlayer(user);
                                     }
+                                    foreach (Item cte in crates.OrderBy(x => x.Rarity))
+                                    {
+                                        foreach (var thing in user.Inventory)
+                                        {
+                                            if (thing.ID == cte.ID)
+                                            {
+                                                copy = thing;
+                                                isInInventory = true;
+                                                break;
+                                            }
+                                        }
+                                        if (isInInventory == false)
+                                            user.Inventory.Add(cte);
+                                        else
+                                            copy.Multiple += cte.Multiple;
+                                        isInInventory = false;
+                                        obtained += $"{cte.Name} x{cte.Multiple}\n";
+                                    }
+                                    Bot.PlayerDatabase.UpdatePlayer(user);
+                                    if (utility.Multiple - amount > 0)
+                                        utility.Multiple -= amount;
+                                    else
+                                        user.Inventory.Remove(utility);
+                                    Bot.PlayerDatabase.UpdatePlayer(user);
                                     embed.Description = $"{obtained}";
                                 }
                                 else if (utility.Special == Special.Scan)
@@ -703,6 +808,11 @@ namespace GameTime.Commands
                                         user.Inventory.Remove(utility);
                                     }
                                     Bot.PlayerDatabase.UpdatePlayer(user);
+                                }
+                                else if (utility.Special == Special.Scan)
+                                {
+                                    embed.Title = "Unable to use item";
+                                    embed.Description = "Gauntlet Key is unable to be used by g/use.";
                                 }
                                 embed.Color = DiscordColor.Orange;
                             }
@@ -722,8 +832,8 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -733,15 +843,47 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (String.IsNullOrEmpty(itemName))
                 {
                     embed.Title = "Error";
                     embed.AddField("Invalid Name", "Please provide an item name to use.");
                     embed.Color = DiscordColor.Red;
+                }
+                else if(itemName.ToLower() == "all")
+                {
+                    var allItemsSold = "";
+                    var allItems = new List<Item>();
+                    var totalMoneyMade = 0m;
+                    var totalItems = 0;
+                    foreach(var item in user.Inventory)
+                    {
+                        if(item.IsSellable)
+                        {
+                            user.Balance += item.Value * item.Multiple;
+                            allItems.Add(item);
+                            allItemsSold += $"x{item.Multiple} {item.Name}s sold for ${(item.Value * item.Multiple).ToString("###,###,###,###,###,##0.#0")}\n";
+                            totalMoneyMade += item.Value * item.Multiple;
+                            totalItems += item.Multiple;
+                        }
+                    }
+                    foreach(var item in allItems)
+                    {
+                        GeneralFunctions.RemoveFromInventory(user, item, item.Multiple);
+                    }
+                    if(allItemsSold == "")
+                    {
+                        embed.Title = "No Items Sold";
+                        embed.Description = $"You currently have no sellable items";
+                    }
+                    else
+                    {
+                        embed.Title = "Items Sold!";
+                        embed.Description = allItemsSold;
+                        embed.WithFooter($"Total Value: {totalMoneyMade.ToString("###,###,###,###,###,##0.#0")}\nTotal items: {totalItems}");
+                    }
+                    embed.Color = new DiscordColor(user.PlayerColor);
+                    Bot.PlayerDatabase.UpdatePlayer(user);
                 }
                 else
                 {
@@ -749,9 +891,16 @@ namespace GameTime.Commands
                     var split = itemName.ToLower().Split(" x");
                     if (split.Count() > 1)
                     {
-                        if (Int32.Parse(split[1]) > 0)
+                        if (int.Parse(split[1]) > 0)
                         {
-                            amount = Int32.Parse(split[1]);
+                            try
+                            {
+                                amount = int.Parse(split[1]);
+                            }
+                            catch
+                            {
+                                amount = 1;
+                            }
                         }
                         itemName = split[0];
                     }
@@ -797,7 +946,7 @@ namespace GameTime.Commands
                             Bot.PlayerDatabase.UpdatePlayer(user);
                             embed.Title = "Item Sold!";
                             embed.AddField("Item", $"{amount} {item.Name}s sold for ${gained.ToString("###,###,###,###,###,##0.#0")}");
-                            embed.Color = DiscordColor.Gold;
+                            embed.Color = new DiscordColor(user.PlayerColor);
                         }
                     }
                     else
@@ -819,8 +968,8 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -830,10 +979,7 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 embed.Title = $"{ctx.Member.Username}'s Balance";
                 embed.Description = $"${user.Balance.ToString("###,###,###,###,###,##0.#0")}";
             }
@@ -927,6 +1073,10 @@ namespace GameTime.Commands
                         {
                             embed.AddField("Special:", "Hits 3 targets at the same time.");
                         }
+                        else if (weapon.Special == Special.GauntletUnlock)
+                        {
+                            embed.AddField("Special:", "Allows you to enter a gauntlet");
+                        }
                     }
                     else
                     {
@@ -1019,7 +1169,7 @@ namespace GameTime.Commands
                     }
                     else
                     {
-                        embed.AddField("Heals:", $"{healing.MaxHealingRate}-{healing.LowestHealingRate}", true);
+                        embed.AddField("Heals:", $"{healing.LowestHealingRate}-{healing.MaxHealingRate}", true);
                     }
                     embed.AddField("Value:", $"${healing.Value.ToString("###,###,###,###,###,##0.#0")}", true);
                     embed.AddField("Cooldown:", $"{healing.Cooldown.ToString(@"hh\:mm\:ss")}");
@@ -1185,6 +1335,7 @@ namespace GameTime.Commands
             embed.AddField("Epics:", epic, true);
             embed.AddField("Uniques:", unique, true);
             embed.AddField("Key:", "*b* = buyable\n**s** = sellable");
+            embed.Color = DiscordColor.Blurple; ;
             await ctx.Channel.SendMessageAsync(embed: embed);
         }
 
@@ -1194,10 +1345,11 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
+            var interactivity = ctx.Client.GetInteractivity();
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -1207,10 +1359,7 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (String.IsNullOrEmpty(itemName))
                 {
                     embed.Title = "Error";
@@ -1223,9 +1372,16 @@ namespace GameTime.Commands
                     var split = itemName.ToLower().Split(" x");
                     if (split.Count() > 1)
                     {
-                        if (Int32.Parse(split[1]) > 0)
+                        if (int.Parse(split[1]) > 0)
                         {
-                            amount = Int32.Parse(split[1]);
+                            try
+                            {
+                                amount = int.Parse(split[1]);
+                            }
+                            catch
+                            {
+                                amount = 1;
+                            }
                         }
                         itemName = split[0];
                     }
@@ -1249,61 +1405,65 @@ namespace GameTime.Commands
                             {
                                 if (item is Crate)
                                 {
-                                    var isInInventory = false;
-                                    Item copy = null;
-                                    foreach (var thing in user.Inventory)
+                                    embed.Title = "Are you sure?";
+                                    embed.Description = "Respond with \"yes\" to confirm. Respond with \"no\" to cancel. Respond in 60 seconds.";
+                                    embed.AddField("Items Buying:", $"{item.Name} x{amount} for ${(item.Value * amount).ToString("###,###,###,###,###,##0.#0")}");
+                                    embed.Color = new DiscordColor(user.PlayerColor);
+                                    await ctx.Channel.SendMessageAsync(embed: embed);
+                                    var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member && x.Content.ToLower() == "yes" || x.Content.ToLower() == "no", TimeSpan.FromSeconds(60));
+                                    embed.ClearFields();
+                                    if (response.TimedOut)
                                     {
-                                        if (thing.ID == item.ID)
-                                        {
-                                            copy = thing;
-                                            isInInventory = true;
-                                            break;
-                                        }
+                                        embed.Title = $"Purchase Cancelled";
+                                        embed.Description = $"No valid response was given";
+                                        embed.Color = DiscordColor.Red;
                                     }
-                                    if (isInInventory == false)
+                                    else if(Confirmation(response.Result) == true)
                                     {
-                                        item = Bot.Items.GetItem(item);
-                                        user.Inventory.Add(item);
-                                        item.Multiple += amount-1;
+                                        user.Balance -= item.Value * amount;
+                                        GeneralFunctions.AddToInventory(user, item, amount);
+                                        Bot.PlayerDatabase.UpdatePlayer(user);
+                                        embed.Title = $"You bought {amount} {item.Name}s";
+                                        embed.Description = $"You bought {amount} {item.Name} for ${(item.Value * amount).ToString("###,###,###,###,###,##0.#0")}";
+                                        embed.Color = DiscordColor.Green;
                                     }
                                     else
                                     {
-                                        copy.Multiple += amount;
+                                        embed.Title = $"Purchase Cancelled";
+                                        embed.Description = $"Purchase was cancelled";
+                                        embed.Color = DiscordColor.Red;
                                     }
-                                    user.Balance -= item.Value * amount;
-                                    Bot.PlayerDatabase.UpdatePlayer(user);
-                                    embed.Title = $"You bought {amount} {item.Name}s";
-                                    embed.Description = $"You bought {amount} {item.Name} for ${(item.Value * amount).ToString("###,###,###,###,###,##0.#0")}";
-                                    embed.Color = DiscordColor.Green;
                                 }
                                 else
                                 {
-                                    var isInInventory = false;
-                                    Item copy = null;
-                                    foreach (var thing in user.Inventory)
+                                    embed.Title = "Are you sure?";
+                                    embed.Description = "Respond with \"yes\" to confirm. Respond with \"no\" to cancel. Respond in 60 seconds.";
+                                    embed.AddField("Items Buying:", $"{item.Name} x{amount} for {((item.Value * 1.25m) * amount).ToString("###,###,###,###,###,##0.#0")}");
+                                    embed.Color = new DiscordColor(user.PlayerColor);
+                                    await ctx.Channel.SendMessageAsync(embed: embed);
+                                    var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member && x.Content.ToLower() == "yes" || x.Content.ToLower() == "no", TimeSpan.FromSeconds(60));
+                                    embed.ClearFields();
+                                    if(response.TimedOut)
                                     {
-                                        if (thing.ID == item.ID)
-                                        {
-                                            copy = thing;
-                                            isInInventory = true;
-                                            break;
-                                        }
+                                        embed.Title = $"Purchase Cancelled";
+                                        embed.Description = $"No valid response was given";
+                                        embed.Color = DiscordColor.Red;
                                     }
-                                    if (isInInventory == false)
+                                    else if(Confirmation(response.Result) == true)
                                     {
-                                        item = Bot.Items.GetItem(item);
-                                        user.Inventory.Add(item);
-                                        item.Multiple += amount-1;
+                                        user.Balance -= item.Value * 1.25m * amount;
+                                        GeneralFunctions.AddToInventory(user, item, amount);
+                                        Bot.PlayerDatabase.UpdatePlayer(user);
+                                        embed.Title = $"You bought {amount} {item.Name}s";
+                                        embed.Description = $"You bought {amount} {item.Name} for ${((item.Value * 1.25m) * amount).ToString("###,###,###,###,###,##0.#0")}";
+                                        embed.Color = DiscordColor.Green;
                                     }
                                     else
                                     {
-                                        copy.Multiple += amount;
+                                        embed.Title = $"Purchase Cancelled";
+                                        embed.Description = $"Purchase was cancelled";
+                                        embed.Color = DiscordColor.Red;
                                     }
-                                    user.Balance -= item.Value * 1.25m * amount;
-                                    Bot.PlayerDatabase.UpdatePlayer(user);
-                                    embed.Title = $"You bought {amount} {item.Name}s";
-                                    embed.Description = $"You bought {amount} {item.Name} for ${((item.Value * 1.25m) * amount).ToString("###,###,###,###,###,##0.#0")}";
-                                    embed.Color = DiscordColor.Green;
                                 }
                             }
                             else
@@ -1346,9 +1506,9 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
                 embed.Description += " Use g/hour again or g/h to claim your crate.";
-                embed.Color = DiscordColor.Purple;
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -1358,32 +1518,11 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (DateTime.Now - user.CooldownHourStartTime >= user.HourCooldown)
                 {
-                    var item = Crate.GetRandomCrate();
-                    var isInInventory = false;
-                    Item copy = null;
-                    foreach (var thing in user.Inventory)
-                    {
-                        if (thing.ID == item.ID)
-                        {
-                            copy = thing;
-                            isInInventory = true;
-                            break;
-                        }
-                    }
-                    if (isInInventory == false)
-                    {
-                        user.Inventory.Add(item);
-                    }
-                    else
-                    {
-                        copy.Multiple++;
-                    }
+                    var item = Crate.GetHourly();
+                    GeneralFunctions.AddToInventory(user, item, 1);
                     user.HourCooldown = TimeSpan.FromHours(1);
                     user.CooldownHourStartTime = DateTime.Now;
                     user.CooldownHourEndTime = user.CooldownHourStartTime.Add(user.HourCooldown);
@@ -1427,9 +1566,9 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
                 embed.Description += " Use g/daily again or g/d or g/day to claim your crate.";
-                embed.Color = DiscordColor.Purple;
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -1439,13 +1578,10 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
+                if (DateTime.Now - user.DailyCooldownStart >= user.DailyCooldown)
                 {
-                    user.Name = ctx.Member.Username;
-                }
-                if (DateTime.Now - user.DailyCooldownEnd >= user.DailyCooldown)
-                {
-                    var item = Crate.GetRandomCrate();
+                    var item = Crate.GetDaily();
                     var isInInventory = false;
                     Item copy = null;
                     foreach (var thing in user.Inventory)
@@ -1486,7 +1622,7 @@ namespace GameTime.Commands
                     {
                         embed.Color = DiscordColor.Gold;
                     }
-                    embed.Description = "You can do this again in the next hour";
+                    embed.Description = "You can do this again in the next day";
                 }
                 else
                 {
@@ -1509,8 +1645,8 @@ namespace GameTime.Commands
             var isOptedIn = false;
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
             else if (user.IsBanned == true)
@@ -1521,10 +1657,6 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
                 foreach (var guild in user.GuildsOptedIn)
                 {
                     if (guild == Convert.ToInt64(ctx.Guild.Id))
@@ -1535,6 +1667,7 @@ namespace GameTime.Commands
             }
             if (isOptedIn == false && user.IsBanned == false)
             {
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 var interactivity = ctx.Client.GetInteractivity();
                 embed.Title = "Confirmation";
                 embed.Description = "Are you sure you want to opt into the server? You will be able to attack and will be attacked until you opt out. Reply yes or no in the next 10 seconds.";
@@ -1613,16 +1746,12 @@ namespace GameTime.Commands
             var isOptedIn = false;
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
                 foreach (var guild in user.GuildsOptedIn)
                 {
                     if (guild == Convert.ToInt64(ctx.Guild.Id))
@@ -1638,14 +1767,14 @@ namespace GameTime.Commands
                     var interactivity = ctx.Client.GetInteractivity();
                     embed.Title = "Confirmation";
                     embed.Description = "Are you sure you want to opt out of the server? You will not be able to attack and will be safe from all attacks. Reply yes or no in the next 10 seconds.";
-                    embed.Color = DiscordColor.White;
+                    embed.Color = new DiscordColor(user.PlayerColor);
                     await ctx.Channel.SendMessageAsync(embed: embed);
                     var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel, TimeSpan.FromSeconds(10));
                     if (response.TimedOut)
                     {
                         embed.Title = $"Not Opted Out";
                         embed.Description = "You chose to stay opted in.";
-                        embed.Color = DiscordColor.White;
+                        embed.Color = new DiscordColor(user.PlayerColor);
                         goto done;
                     }
                     else if (response.Result.Content.ToLower() != "yes" && response.Result.Content.ToLower() != "no")
@@ -1662,7 +1791,7 @@ namespace GameTime.Commands
                             {
                                 embed.Title = $"Not Opted In";
                                 embed.Description = "You chose to stay opted out.";
-                                embed.Color = DiscordColor.White;
+                                embed.Color = new DiscordColor(user.PlayerColor);
                             }
                             else if (response.Result.Content.ToLower() == "yes" || response.Result.Content.ToLower() == "no")
                             {
@@ -1681,7 +1810,7 @@ namespace GameTime.Commands
                     {
                         embed.Title = $"Not Opted Out";
                         embed.Description = "You chose to stay opted in.";
-                        embed.Color = DiscordColor.White;
+                        embed.Color = new DiscordColor(user.PlayerColor);
                     }
                 done:
                     Bot.PlayerDatabase.UpdatePlayer(user);
@@ -1712,9 +1841,9 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
                 embed.Description += " Use g/weekly again or g/w or g/week to claim your crate.";
-                embed.Color = DiscordColor.Purple;
+                embed.Color = DiscordColor.Blurple;
             }
             else if (user.IsBanned == true)
             {
@@ -1724,10 +1853,6 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
                 if (DateTime.Now - user.WeeklyCooldownStart >= user.WeeklyCooldown)
                 {
                     var item = Crate.GetWeekly();
@@ -1751,11 +1876,12 @@ namespace GameTime.Commands
                         copy.Multiple++;
                     }
                     user.WeeklyCooldown = TimeSpan.FromDays(7);
+                    user.WeeklyCooldownStart = DateTime.Now;
                     user.WeeklyCooldownEnd = user.WeeklyCooldownStart.Add(user.WeeklyCooldown);
                     Bot.PlayerDatabase.UpdatePlayer(user);
                     embed.Title = $"You got {item.Name}";
                     embed.Color = DiscordColor.Orange;
-                    embed.Description = "You can do this again in the next month";
+                    embed.Description = "You can do this again in the next week";
                 }
                 else
                 {
@@ -1777,9 +1903,9 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
                 embed.Description += " Use g/monthly again or g/m or g/month to claim your crate.";
-                embed.Color = DiscordColor.Purple;
+                embed.Color = DiscordColor.Blurple;
             }
             else if(user.IsBanned == true)
             {
@@ -1789,10 +1915,6 @@ namespace GameTime.Commands
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
                 Bot.PlayerDatabase.UpdatePlayer(user);
                 if (DateTime.Now - user.MonthlyCooldownStart >= user.MonthlyCooldown)
                 {
@@ -1814,9 +1936,10 @@ namespace GameTime.Commands
                     }
                     else
                     {
-                        copy.Multiple++;
+                        copy.Multiple += item.Multiple;
                     }
                     user.MonthlyCooldown = TimeSpan.FromDays(30);
+                    user.MonthlyCooldownStart = DateTime.Now;
                     user.MonthlyCooldownEnd = user.MonthlyCooldownStart.Add(user.MonthlyCooldown);
                     Bot.PlayerDatabase.UpdatePlayer(user);
                     embed.Title = $"You got {item.Name}";
@@ -1835,7 +1958,7 @@ namespace GameTime.Commands
             await ctx.Channel.SendMessageAsync(embed: embed);
         }
 
-        [Command("cooldown"), Aliases("c")]
+        [Command("cooldowns"), Aliases("c", "cd", "cooldown", "cds")]
         [Description("Displays all cooldowns.")]
         public async Task Cooldown(CommandContext ctx)
         {
@@ -1843,15 +1966,11 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else
             {
-                if (user.Name != ctx.Member.Username)
-                {
-                    user.Name = ctx.Member.Username;
-                }
                 Bot.PlayerDatabase.UpdatePlayer(user);
                 embed.Title = "Cooldowns:";
                 embed.AddField("Hourly", $"{user.GetHourCooldown()}", true);
@@ -1873,20 +1992,16 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user.Name != ctx.Member.Username)
-            {
-                user.Name = ctx.Member.Username;
-            }
             Bot.PlayerDatabase.UpdatePlayer(user);
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else if(user.GameCooldownIgnore == false)
             {
                 embed.Title = "Minigame Cooldown Removed";
-                embed.Description = "Minigame cooldowns will no longer be applied to you. You will not be able to collect rewards from minigames. Only ConnectX cooldowns will be ignored.";
+                embed.Description = "Minigame cooldowns will no longer be applied to you. You will not be able to collect rewards from minigames. This does not apply to scrambler.";
                 embed.Color = DiscordColor.Green;
                 user.GameCooldownIgnore = true;
                 Bot.PlayerDatabase.UpdatePlayer(user);
@@ -1899,22 +2014,17 @@ namespace GameTime.Commands
             }
             await ctx.Channel.SendMessageAsync(embed: embed);
         }
-
         [Command("amc"), Aliases("amgc", "optoutimg", "optamc")]
         [Description("Opt out of ignoring minigame cooldowns. Rewards will be obtainable and cooldowns will apply.")]
         public async Task AcceptMinigameCooldown(CommandContext ctx)
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user.Name != ctx.Member.Username)
-            {
-                user.Name = ctx.Member.Username;
-            }
             Bot.PlayerDatabase.UpdatePlayer(user);
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
             }
             else if(user.GameCooldownIgnore == true)
             {
@@ -1941,14 +2051,10 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             var partnerInv = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(partner.Id));
             var interactivity = ctx.Client.GetInteractivity();
-            if (user.Name != ctx.Member.Username)
-            {
-                user.Name = ctx.Member.Username;
-            }
             if (user == null)
             {
-                embed = NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Purple;
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                embed.Color = DiscordColor.Blurple;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
             else if (user.TradeBan == true)
@@ -1986,7 +2092,14 @@ namespace GameTime.Commands
                 var message = await ctx.Channel.SendMessageAsync(embed: embed);
             repeat:
                 var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == partner, TimeSpan.FromSeconds(60));
-                await response.Result.DeleteAsync();
+                try
+                {
+                    await response.Result.DeleteAsync();
+                }
+                catch
+                {
+
+                }
                 if (response.TimedOut)
                 {
                     embed.Description = $"{partner.Username} did not answer. Trade has been cancelled.";
@@ -2002,7 +2115,7 @@ namespace GameTime.Commands
                 else if (response.Result.Content.ToLower() == "yes")
                 {
                     embed.Title = "Trade";
-                    embed.Description = $"{ctx.Member.Username} & {partner.Username}\n{ctx.Member.Id} & {partner.Id}\nType the name of the item you would like to add\nExample: +add staff\nExample: +add staff x5\nType remove before the item to remove an item from the trade\nExample: +remove staff\nExample: +remove staff x5\nRespond with +confirm to lock your end.\nOther commands: +unconfirm, +cancel";
+                    embed.Description = $"{ctx.Member.Username} & {partner.Username}\nCommands: +add\n+remove\n+confirm\nunconfirm\n+cancel";
                     embed.AddField($"{ctx.Member.Username}", "None");
                     embed.AddField($"{partner.Username}", "None");
                     DiscordEmbed bembed = embed;
@@ -2053,7 +2166,14 @@ namespace GameTime.Commands
                                 embed2.Title = $"{ctx.Member.Username} unconfirmed.";
                                 embed2.Color = DiscordColor.Red;
                                 await ctx.Channel.SendMessageAsync(embed: embed2);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower() == "g/i" || response.Result.Content.ToLower() == "g/inv" || response.Result.Content.ToLower() == "g/inventory")
                             {
@@ -2067,7 +2187,14 @@ namespace GameTime.Commands
                                 embed.Color = DiscordColor.Red;
                                 bembed = embed;
                                 await message.ModifyAsync(null, bembed);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                                 break;
                             }
                             else if (userConfirm == true)
@@ -2076,7 +2203,14 @@ namespace GameTime.Commands
                                 embed2.Title = $"{ctx.Member.Username} cannot modify their end.";
                                 embed2.Color = DiscordColor.Red;
                                 await ctx.Channel.SendMessageAsync(embed: embed2);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower() == "+confirm")
                             {
@@ -2111,7 +2245,14 @@ namespace GameTime.Commands
                                 embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
                                 bembed = embed;
                                 await message.ModifyAsync(null, bembed);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower().Contains("+remove"))
                             {
@@ -2120,9 +2261,16 @@ namespace GameTime.Commands
                                 var split = name.ToLower().Split(" x");
                                 if (split.Count() > 1)
                                 {
-                                    if (Int32.Parse(split[1]) > 0)
+                                    if (int.Parse(split[1]) > 0)
                                     {
-                                        amount = Int32.Parse(split[1]);
+                                        try
+                                        {
+                                            amount = int.Parse(split[1]);
+                                        }
+                                        catch
+                                        {
+                                            amount = 1;
+                                        }
                                     }
                                     itemName = split[0];
                                 }
@@ -2189,7 +2337,14 @@ namespace GameTime.Commands
                                         embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
                                         bembed = embed;
                                         await message.ModifyAsync(null, bembed);
-                                        await response.Result.DeleteAsync();
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
                                     }
                                 }
                                 else if (response.Result.Content.ToLower().Contains("+remove"))
@@ -2199,7 +2354,14 @@ namespace GameTime.Commands
                                     embed2.AddField("Error", "Item is not being used in trade.");
                                     embed2.Color = DiscordColor.Red;
                                     await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    await response.Result.DeleteAsync();
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
                                 }
                                 else
                                 {
@@ -2213,9 +2375,16 @@ namespace GameTime.Commands
                                 var split = name.ToLower().Split(" x");
                                 if (split.Count() > 1)
                                 {
-                                    if (Int32.Parse(split[1]) > 0)
+                                    if (int.Parse(split[1]) > 0)
                                     {
-                                        amount = Int32.Parse(split[1]);
+                                        try
+                                        {
+                                            amount = int.Parse(split[1]);
+                                        }
+                                        catch
+                                        {
+                                            amount = 1;
+                                        }
                                     }
                                     itemName = split[0];
                                 }
@@ -2321,7 +2490,14 @@ namespace GameTime.Commands
                                         embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
                                         bembed = embed;
                                         await message.ModifyAsync(null, bembed);
-                                        await response.Result.DeleteAsync();
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
                                     }
                                 }
                                 else if (response.Result.Content.ToLower().Contains("+add") && item == null)
@@ -2330,7 +2506,14 @@ namespace GameTime.Commands
                                     embed2.Title = $"{ctx.Member.Username} entered an invalid item or does not have the item.";
                                     embed2.Color = DiscordColor.Red;
                                     await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    await response.Result.DeleteAsync();
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
                                 }
                                 else
                                 {
@@ -2348,7 +2531,14 @@ namespace GameTime.Commands
                                 embed2.Title = $"{ctx.Member.Username} unconfirmed.";
                                 embed2.Color = DiscordColor.Red;
                                 await ctx.Channel.SendMessageAsync(embed: embed2);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower() == "g/i" || response.Result.Content.ToLower() == "g/inv" || response.Result.Content.ToLower() == "g/inventory")
                             {
@@ -2362,7 +2552,14 @@ namespace GameTime.Commands
                                 embed.Color = DiscordColor.Red;
                                 bembed = embed;
                                 await message.ModifyAsync(null, bembed);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                                 break;
                             }
                             else if (partnerConfirm == true)
@@ -2371,7 +2568,14 @@ namespace GameTime.Commands
                                 embed2.Title = $"{partner.Username} cannot modify their end.";
                                 embed2.Color = DiscordColor.Red;
                                 await ctx.Channel.SendMessageAsync(embed: embed2);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower() == "+unconfirm")
                             {
@@ -2381,7 +2585,14 @@ namespace GameTime.Commands
                                 embed2.Title = $"{partner.Username} unconfirmed.";
                                 embed2.Color = DiscordColor.Red;
                                 await ctx.Channel.SendMessageAsync(embed: embed2);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower() == "+confirm")
                             {
@@ -2416,7 +2627,14 @@ namespace GameTime.Commands
                                 embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
                                 bembed = embed;
                                 await message.ModifyAsync(null, bembed);
-                                await response.Result.DeleteAsync();
+                                try
+                                {
+                                    await response.Result.DeleteAsync();
+                                }
+                                catch
+                                {
+
+                                }
                             }
                             else if (response.Result.Content.ToLower().Contains("+remove"))
                             {
@@ -2425,9 +2643,16 @@ namespace GameTime.Commands
                                 var split = name.ToLower().Split(" x");
                                 if (split.Count() > 1)
                                 {
-                                    if (Int32.Parse(split[1]) > 0)
+                                    if (int.Parse(split[1]) > 0)
                                     {
-                                        amount = Int32.Parse(split[1]);
+                                        try
+                                        {
+                                            amount = int.Parse(split[1]);
+                                        }
+                                        catch
+                                        {
+                                            amount = 1;
+                                        }
                                     }
                                     itemName = split[0];
                                 }
@@ -2494,7 +2719,14 @@ namespace GameTime.Commands
                                         embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
                                         bembed = embed;
                                         await message.ModifyAsync(null, bembed);
-                                        await response.Result.DeleteAsync();
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
                                     }
                                 }
                                 else if (response.Result.Content.ToLower().Contains("+remove"))
@@ -2504,7 +2736,14 @@ namespace GameTime.Commands
                                     embed2.AddField("Error", "Item is not being used in trade.");
                                     embed2.Color = DiscordColor.Red;
                                     await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    await response.Result.DeleteAsync();
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
                                 }
                                 else
                                 {
@@ -2518,9 +2757,16 @@ namespace GameTime.Commands
                                 var split = name.ToLower().Split(" x");
                                 if (split.Count() > 1)
                                 {
-                                    if (Int32.Parse(split[1]) > 0)
+                                    if (int.Parse(split[1]) > 0)
                                     {
-                                        amount = Int32.Parse(split[1]);
+                                        try
+                                        {
+                                            amount = int.Parse(split[1]);
+                                        }
+                                        catch
+                                        {
+                                            amount = 1;
+                                        }
                                     }
                                     itemName = split[0];
                                 }
@@ -2624,10 +2870,19 @@ namespace GameTime.Commands
                                             display = "None";
                                         }
                                         embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                        embed.WithFooter($"{ctx.Member.Id} & {partner.Id}\nIn order with name");
                                         bembed = embed;
+                                        embed.Footer = null;
                                         await message.ModifyAsync(null, bembed);
                                     }
-                                    await response.Result.DeleteAsync();
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
                                 }
                                 else if (response.Result.Content.ToLower().Contains("+add") && item == null)
                                 {
@@ -2868,7 +3123,6 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var totalPlayers = 0;
             var optedPlayers = 0;
-            List<Player> allPlayers = new List<Player>();
             foreach(var player in Bot.PlayerDatabase.Players)
             {
                 totalPlayers++;
@@ -2884,8 +3138,260 @@ namespace GameTime.Commands
             embed.AddField($"Total users in server {ctx.Guild.Name}", $"{ctx.Guild.MemberCount}");
             embed.AddField("Total users in GameTime", $"{totalPlayers}");
             embed.AddField("Total players opted in this server", $"{optedPlayers}");
-            embed.Color = DiscordColor.Azure;
+            embed.Color = DiscordColor.Blurple;
             await ctx.Channel.SendMessageAsync(embed: embed);
+        }
+        [Command("profile"), Aliases("prof", "file", "pro")]
+        [Description("Gets the profile card of a player.")]
+        public async Task Profile(CommandContext ctx, [RemainingText] string playerName = null)
+        {
+            var embed = new DiscordEmbedBuilder();
+            Player user = null;
+            long id = 0;
+            if (playerName != null)
+            {
+                try
+                {
+                    id = Convert.ToInt64(playerName);
+                    user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
+                }
+                catch
+                {
+                    user = Bot.PlayerDatabase.GetPlayerByName(playerName);
+                    if (user != null)
+                        id = user.ID;
+                }
+            }
+            else
+            {
+                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.User.Id));
+                id = (long)ctx.User.Id;
+            }
+            if (user == null && ctx.Member.IsBot != true && (long)ctx.Member.Id == id)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else if (user == null && id != Convert.ToInt64(ctx.Member.Id))
+            {
+                embed.Title = "No user can be found (Names are case sensitive)";
+                embed.Color = DiscordColor.Red;
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else if (ctx.Member.IsBot != true)
+            {
+                if(playerName == null)
+                {
+                    GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
+                }
+                var metals = "";
+                foreach (var metal in user.Metals)
+                {
+                    metals += $"{metal} ";
+                }
+                embed.Title = $"{user.Name} {metals}";
+                embed.WithThumbnail(user.Image, 300, 300);
+                embed.WithFooter($"Joined {user.Joined.ToString("MM / dd / yyyy")}");
+                decimal inventoryValue = 0;
+                foreach (var item in user.Inventory.OrderBy(y => y.Name).OrderBy(x => x.Rarity))
+                {
+                    inventoryValue += item.Value * item.Multiple;
+                }
+                if (user.ID == 277275957147074560)
+                {
+                    embed.AddField("GameTime Owner", $"Tis me\nPlayer Value: ${(user.Balance + inventoryValue).ToString("###,###,###,###,###,##0.#0")}");
+                }
+                else if (user.AuthroizedAdmin)
+                {
+                    embed.AddField("GameTime Admin", $"Player Value: ${(user.Balance + inventoryValue).ToString("###,###,###,###,###,##0.#0")}");
+                }
+                else if(user.AuthroizedMod)
+                {
+                    embed.AddField("GameTime Moderator", $"Player Value: ${(user.Balance + inventoryValue).ToString("###,###,###,###,###,##0.#0")}");
+                }
+                else if(user.IsDonor)
+                {
+                    embed.AddField("GameTime Donor", $"Player Value: ${(user.Balance + inventoryValue).ToString("###,###,###,###,###,##0.#0")}");
+                }
+                else
+                {
+                    embed.AddField("GameTime Player", $"Player Value: ${(user.Balance + inventoryValue).ToString("###,###,###,###,###,##0.#0")}");
+                }
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else
+            {
+
+            }
+        }
+        [Command("stats"), Aliases("st", "sts")]
+        [Description("Displays players stats.")]
+        public async Task Stats(CommandContext ctx, [RemainingText] string playerName = null)
+        {
+            var embed = new DiscordEmbedBuilder();
+            Player user = null;
+            long id = 0;
+            if (playerName != null)
+            {
+                try
+                {
+                    id = Convert.ToInt64(playerName);
+                    user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
+                }
+                catch
+                {
+                    user = Bot.PlayerDatabase.GetPlayerByName(playerName);
+                    if (user != null)
+                        id = user.ID;
+                }
+            }
+            else
+            {
+                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.User.Id));
+                id = (long)ctx.User.Id;
+            }
+            if (user == null && ctx.Member.IsBot != true && (long)ctx.Member.Id == id)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else if (user == null && id != Convert.ToInt64(ctx.Member.Id))
+            {
+                embed.Title = "No user can be found (Names are case sensitive)";
+                embed.Color = DiscordColor.Red;
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else if (ctx.Member.IsBot != true)
+            {
+                if (playerName == null)
+                {
+                    GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
+                }
+                decimal inventoryValue = 0;
+                foreach (var item in user.Inventory.OrderBy(y => y.Name).OrderBy(x => x.Rarity))
+                {
+                    inventoryValue += item.Value * item.Multiple;
+                }
+                var KD = 0;
+                if (user.Deaths == 0)
+                {
+                    KD = user.Kills;
+                }
+                else
+                {
+                    KD = user.Kills / user.Deaths;
+                }
+                embed.Title = $"{user.Name}'s stats";
+                embed.AddField("Kills", $"{user.Kills}", true);
+                embed.AddField("Deaths", $"{user.Deaths}", true);
+                embed.AddField("K/D", $"{KD}", true);
+                embed.AddField("Player Value", $"${(user.Balance + inventoryValue).ToString("###,###,###,###,###,##0.#0")}", true);
+                embed.Color = new DiscordColor(user.PlayerColor);
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else
+            {
+
+            }
+        }
+        [Command("set-color"), Aliases("color", "col")]
+        [Description("Sets your player color. This color will apply to your paintball colors as well.")]
+        public async Task SetColor(CommandContext ctx)
+        {
+            var embed = new DiscordEmbedBuilder();
+            var interactivity = ctx.Client.GetInteractivity();
+            var user = Bot.PlayerDatabase.GetPlayerByID((long)ctx.Member.Id);
+            if (user == null)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else
+            {
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
+                embed.Title = "Choose A Color";
+                embed.Description = "Choose a color by responding with the color you desire.";
+                embed.AddField("Color list", "Blue\nGreen\nGold\nYellow\nOrange\nCyan\nRed\nBrown\nBlack\nGray\nPink\nWhite");
+                await ctx.Channel.SendMessageAsync(embed: embed);
+                var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member, TimeSpan.FromSeconds(60));
+                user.PlayerColor = response.Result.Content.ToLower() switch
+                {
+                    "blue" => DiscordColor.Blue.ToString(),
+                    "green" => DiscordColor.Green.ToString(),
+                    "gold" => DiscordColor.Gold.ToString(),
+                    "yellow" => DiscordColor.Yellow.ToString(),
+                    "orange" => DiscordColor.Orange.ToString(),
+                    "cyan" => DiscordColor.Cyan.ToString(),
+                    "red" => DiscordColor.Red.ToString(),
+                    "brown" => DiscordColor.Brown.ToString(),
+                    "black" => DiscordColor.Black.ToString(),
+                    "gray" => DiscordColor.Gray.ToString(),
+                    "pink" => DiscordColor.HotPink.ToString(),
+                    _ => DiscordColor.White.ToString(),
+                };
+                Bot.PlayerDatabase.UpdatePlayer(user);
+                await ctx.Channel.SendMessageAsync("Your color has been set!");
+            }
+        }
+        [Command("read-mail"), Aliases("rm", "email")]
+        [Description("Read your mail")]
+        public async Task ReadMail(CommandContext ctx)
+        {
+            var embed = new DiscordEmbedBuilder();
+            var interactivity = ctx.Client.GetInteractivity();
+            var user = Bot.PlayerDatabase.GetPlayerByID((long)ctx.Member.Id);
+            if (user == null)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else
+            {
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
+                embed.Title = $"{user.Name}'s Mails";
+                foreach(var mail in user.Mail)
+                {
+                    embed.AddField(mail.Title, $"{mail.Content}\n\n{mail.Sign}");
+                    if (!mail.MailRead)
+                    {
+                        mail.MailRead = true;
+                        Bot.PlayerDatabase.UpdatePlayer(user);
+                    }
+                }
+                embed.WithFooter("Mail autoclears after 30 seconds");
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+        }
+        [Command("clear-mail"), Aliases("cm", "clear")]
+        [Description("Clear your mail")]
+        public async Task ClearMail(CommandContext ctx)
+        {
+            var embed = new DiscordEmbedBuilder();
+            var interactivity = ctx.Client.GetInteractivity();
+            var user = Bot.PlayerDatabase.GetPlayerByID((long)ctx.Member.Id);
+            if (user == null)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
+                await ctx.Channel.SendMessageAsync(embed: embed);
+            }
+            else
+            {
+                GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
+                user.Mail.Clear();
+                Bot.PlayerDatabase.UpdatePlayer(user);
+                await ctx.Channel.SendMessageAsync("Mail cleared");
+            }
+        }
+        [Command("shark")] //remember to save command for Noah
+        [Hidden()]
+        public async Task Shark(CommandContext ctx)
+        {
+            if(ctx.User.Id == 382337764559159296 || ctx.User.Id == 277275957147074560) //Noah or Goldminer
+            {
+                var message = await ctx.Channel.SendMessageAsync("Shark");
+                var emoji = DiscordEmoji.FromUnicode("🦈");
+                await message.CreateReactionAsync(emoji);
+            }
         }
         private async void Death(CommandContext ctx, Player user, Player target)
         {
@@ -2908,7 +3414,6 @@ namespace GameTime.Commands
                     var rNum = new Random().Next(0, target.Inventory.Count);
                     var lootedItem = target.Inventory[rNum];
                     var isInInventory = false;
-                    Item copy = null;
                     if (lootedItem.Multiple > 1)
                     {
                         lootedItem.Multiple--;
@@ -2954,6 +3459,8 @@ namespace GameTime.Commands
                 embed.Title = $"You killed {targetAsMember.Result.Username}";
                 embed.AddField("You took:", $"{itemsLooted}\n${moneyStolen.ToString("###,###,###,###,###,##0.#0")}");
                 embed.Color = DiscordColor.VeryDarkGray;
+                user.Kills++;
+                target.Deaths++;
                 Bot.PlayerDatabase.UpdatePlayer(user);
                 Bot.PlayerDatabase.UpdatePlayer(target);
             }
@@ -2967,13 +3474,6 @@ namespace GameTime.Commands
                 Bot.PlayerDatabase.UpdatePlayer(target);
             }
             await ctx.Channel.SendMessageAsync(embed: embed);
-        }
-        private DiscordEmbedBuilder NewPlayer(CommandContext ctx, DiscordEmbedBuilder embed, ulong id)
-        {
-            embed.Title = "New User Detected";
-            embed.Description = "Here is a flare to start you off. Use g/inventory again to view your inventory. Use g/help to view all the commands. ";
-            Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(id), Name = ctx.Member.Username });
-            return embed;
         }
         private string Attack(DiscordEmbedBuilder embed, CommandContext ctx, Player user, Player target, Weapon weapon, DiscordMember targetAsMember, Item i)
         {
@@ -2990,7 +3490,6 @@ namespace GameTime.Commands
                     }
                     else if (user.ActiveAttachment.Ability == Addon.ReduceCooldown)
                     {
-                        user.CooldownLength += TimeSpan.FromSeconds(user.ActiveAttachment.Intensity);
                         obtained = $"Your {user.ActiveAttachment.Name} reduced your cooldown by {user.ActiveAttachment.Intensity}%\n";
                     }
                     else if (user.ActiveAttachment.Ability == Addon.IncreaseHitRate)
@@ -3011,14 +3510,12 @@ namespace GameTime.Commands
                 {
                     for (int count = 0; count < weapon.FireRate + attachmentHit; count++)
                     {
-                        hit += weapon.LowestDamage == -1 ? weapon.HighestDamage : new Random().Next(weapon.LowestDamage, weapon.HighestDamage + 1);
+                        hit = weapon.LowestDamage == -1 ? weapon.HighestDamage : new Random().Next(weapon.LowestDamage, weapon.HighestDamage + 1);
                         damage += hit;
                         if (target.Protection > 0)
                         {
                             obtained += $"You hit {targetAsMember.Username}'s {target.ProtectionName} for {hit}\n";
-                            var armorHealth2 = target.Protection;
-                            armorHealth2 -= hit;
-                            if (damage < 0)
+                            if (damage <= 0)
                             {
                                 damage = 0;
                             }
@@ -3034,14 +3531,13 @@ namespace GameTime.Commands
                                 else
                                 {
                                     target.Protection -= hit;
-                                    damage = armorHealth2 - damage;
+                                    damage -= hit;
                                 }
-                                if (damage < 0)
+                                if (damage <= 0)
                                 {
                                     damage = 0;
                                 }
                             }
-                            Bot.PlayerDatabase.UpdatePlayer(target);
                             Bot.PlayerDatabase.UpdatePlayer(target);
                         }
                         else
@@ -3079,15 +3575,13 @@ namespace GameTime.Commands
             }
             else if (weapon.WeaponType == WeaponType.Melee && target.Protection > 0)
             {
-                int damage = 0, hit = 0, leftoverDamage = 0, num = 0;
+                int damage = 0, hit, leftoverDamage = 0, num = 0;
                 hit = weapon.LowestDamage == -1 ? weapon.HighestDamage : new Random().Next(weapon.LowestDamage, weapon.HighestDamage + 1);
                 damage += hit;
                 if (target.Protection > 0)
                 {
                     obtained += $"You hit {targetAsMember.Username}'s {target.ProtectionName} for {hit}\n";
-                    var armorHealth2 = target.Protection;
-                    armorHealth2 -= hit;
-                    if (damage < 0)
+                    if (damage <= 0)
                     {
                         damage = 0;
                     }
@@ -3103,14 +3597,13 @@ namespace GameTime.Commands
                         else
                         {
                             target.Protection -= hit;
-                            damage = armorHealth2 - damage;
+                            damage -= hit;
                         }
-                        if (damage < 0)
+                        if (damage <= 0)
                         {
                             damage = 0;
                         }
                     }
-                    Bot.PlayerDatabase.UpdatePlayer(target);
                     Bot.PlayerDatabase.UpdatePlayer(target);
                 }
                 else
@@ -3119,7 +3612,6 @@ namespace GameTime.Commands
                 }
                 if (target.Protection <= 0 && num == 0)
                 {
-                    num++;
                     obtained += $"You broke {targetAsMember.Username}'s {target.ProtectionName}! {leftoverDamage} hit {targetAsMember.Username}\n";
                     target.Protection = 0;
                     target.ProtectionName = null;
@@ -3146,9 +3638,7 @@ namespace GameTime.Commands
             }
             else if ((weapon.WeaponType == WeaponType.Firearm || weapon.WeaponType == WeaponType.HeavyFirearm) && target.Protection <= 0)
             {
-                int damage = 0, hit = 0, attachmentHit = 0;
-                user.CooldownStartTime = DateTime.Now;
-                user.CooldownLength = weapon.Cooldown;
+                int damage = 0, hit, attachmentHit = 0;
                 if (user.ActiveAttachment != null)
                 {
                     if (user.ActiveAttachment.Ability == Addon.HighestDamageIncrease)
@@ -3158,7 +3648,6 @@ namespace GameTime.Commands
                     }
                     else if (user.ActiveAttachment.Ability == Addon.ReduceCooldown)
                     {
-                        user.CooldownLength += TimeSpan.FromSeconds(user.ActiveAttachment.Intensity);
                         obtained = $"Your {user.ActiveAttachment.Name} reduced your cooldown by {user.ActiveAttachment.Intensity}%\n";
                     }
                     else if (user.ActiveAttachment.Ability == Addon.IncreaseHitRate)
@@ -3227,6 +3716,15 @@ namespace GameTime.Commands
                 Death(ctx, user, target);
             }
             return embed.Description;
+        }
+        private bool Confirmation(DiscordMessage response)
+        {
+            var confirmed = false;
+            if (response.Content.ToLower() == "yes")
+            {
+                confirmed = true;
+            }
+            return confirmed;
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿using LiteDB;
+﻿using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
+using LiteDB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,6 +53,31 @@ namespace GameTime.Models
         public Player GetPlayerByID(long id)
         {
             return colPlayers.FindById(id);
+        }
+        public Player GetPlayerByName(string name)
+        {
+            foreach(Player player in players)
+            {
+                if (player.Name == name)
+                    return player;
+            }
+            return null;
+        }
+        public DiscordEmbedBuilder NewPlayer(CommandContext ctx, DiscordEmbedBuilder embed, ulong id)
+        {
+            if(id != 277275957147074560)
+            {
+                embed.Title = "New User Detected";
+                embed.Description = "Here is a flare to start you off. Use g/inventory again to view your inventory. Use g/help to view all the commands. ";
+                Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(id), Name = ctx.Member.Username, Image = ctx.Member.AvatarUrl });
+            }
+            else
+            {
+                embed.Title = "Greetings Goldminer127";
+                embed.Description = "Admin permissions granted.";
+                Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(id), Name = ctx.Member.Username, Image = ctx.Member.AvatarUrl, AuthroizedAdmin = true, AuthroizedMod = true });
+            }
+            return embed;
         }
     }
 }

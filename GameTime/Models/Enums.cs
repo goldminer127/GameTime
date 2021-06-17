@@ -54,6 +54,7 @@
         Scan,
         SpreadShot,
         SupplyCall,
+        GauntletUnlock,
         None
     }
 }

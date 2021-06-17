@@ -9,6 +9,7 @@ using DSharpPlus.Interactivity;
 using GameTime.ScramblerModels;
 using GameTime.DotPuzzleModels;
 using DSharpPlus.Entities;
+using DSharpPlus.Interactivity.Extensions;
 
 namespace GameTime
 {
@@ -19,9 +20,11 @@ namespace GameTime
         public static PlayerDatabase PlayerDatabase { get; private set; }
         public static ItemList Items { get; private set; }
         public static InteractivityExtension Interactivity { get; private set; }
+        public static Metals AllMetals { get; private set; }
         public static WordList Words { get; private set; }
         public static PuzzleList DotPuzzles { get; private set; }
-        public static DiscordGuild HomeGuild { get; set; }
+        public static DiscordGuild HomeGuild { get; private set; }
+        public static DiscordClient Client { get; private set; }
 
         public static void Main(string[] args)
         {
@@ -30,11 +33,12 @@ namespace GameTime
 
         public Bot()
         {
-            Version = "1.0.0";
+            Version = "0.2.1";
             PlayerDatabase = new PlayerDatabase("player.db");
             Items = new ItemList();
             Words = new WordList();
             DotPuzzles = new PuzzleList();
+            AllMetals = new Metals();
         }
 
         ~Bot() 
@@ -71,6 +75,7 @@ namespace GameTime
                 }
                 Config = new Config(token, prefix);
                 Config.SaveConfig(Config);
+                Console.Write("Settings Saved");
             }
             DiscordAsync().GetAwaiter().GetResult();
         }
@@ -81,10 +86,11 @@ namespace GameTime
             {
                 Token = Config.Token,
                 TokenType = TokenType.Bot,
-                AutoReconnect = true,
-                UseInternalLogHandler = true
+                //MinimumLogLevel = Microsoft.Extensions.Logging.LogLevel.Debug, //Unused
+                AutoReconnect = true
             });
-            HomeGuild = await client.GetGuildAsync(749832562779750430);
+            HomeGuild = await client.GetGuildAsync(637049983916310558);
+            Client = client;
             Interactivity = client.UseInteractivity(new InteractivityConfiguration
             {
                 Timeout = TimeSpan.FromMinutes(5)
@@ -97,11 +103,24 @@ namespace GameTime
                 CaseSensitive = false
             });
             client.Ready += Events.Client_Ready;
+            client.GuildMemberRemoved += Events.GuildMemberLeave;
             commands.CommandErrored += Events.CommandErrored;
             commands.RegisterCommands<AdminCommands>();
+            Console.WriteLine("Admin Commands Ready");
             commands.RegisterCommands<PlayerCommands>();
+            Console.WriteLine("Player Commands Ready");
             commands.RegisterCommands<WordScramblerCommands>();
+            Console.WriteLine("Scrambler Initialized");
             commands.RegisterCommands<MoveToDotCommands>();
+            Console.WriteLine("ConnectX Initialized");
+            commands.RegisterCommands<MinesweeperCommands>();
+            Console.WriteLine("Minesweeper Initialized");
+            commands.RegisterCommands<GauntletCommands>();
+            Console.WriteLine("Gauntlet Initialized");
+            commands.RegisterCommands<CasinoGames>();
+            Console.WriteLine("Casino Initialized");
+            commands.RegisterCommands<BetaCommands>();
+            Console.WriteLine("Gauntlet Initialized");
             await client.ConnectAsync();
             await Task.Delay(-1);
         }

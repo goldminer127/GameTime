@@ -415,18 +415,22 @@ namespace GameTime.ScramblerModels
         }
         public static string ScrambleWord(string word)
         {
-            var scrambledWord = "";
+            var scrambledWord = word;
             var letters = new List<string>();
-            foreach (var c in word)
+            while (scrambledWord == word)
             {
-                letters.Add(c.ToString());
-            }
-            for (var i = letters.Count; i > 0; i--)
-            {
-                var randomNum = new Random().Next(0, i-1);
-                var letter = letters[randomNum];
-                scrambledWord += letter;
-                letters.Remove(letter);
+                scrambledWord = "";
+                foreach (var c in word)
+                {
+                    letters.Add(c.ToString());
+                }
+                for (var i = letters.Count; i > 0; i--)
+                {
+                    var randomNum = new Random().Next(0, i - 1);
+                    var letter = letters[randomNum];
+                    scrambledWord += letter;
+                    letters.Remove(letter);
+                }
             }
             return scrambledWord.ToLower();
         }
