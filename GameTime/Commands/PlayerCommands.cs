@@ -13,50 +13,28 @@ namespace GameTime.Commands
 {
     public class PlayerCommands : BaseCommandModule
     {
+        //Commands
         [Command("inventory"), Aliases("i", "inv")]
         [Description("Displays the user's inventory.")]
         public async Task Inventory(CommandContext ctx, [RemainingText]string playerName = null)
         {
             var embed = new DiscordEmbedBuilder();
             Player user = null;
-            long id = 0;
             if (playerName != null)
-            {
-                try
-                {
-                    id = Convert.ToInt64(playerName);
-                    user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
-                }
-                catch
-                {
-                    user = Bot.PlayerDatabase.GetPlayerByName(playerName);
-                    if (user != null)
-                        id = user.ID;
-                }
-            }
+                user = GeneralFunctions.GetRequestePlayer(playerName);
             else
-            {
-                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.User.Id));
-                id = (long)ctx.User.Id;
-            }
-            if (user == null && ctx.Member.IsBot != true && (long)ctx.Member.Id == id)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (user == null && id != Convert.ToInt64(ctx.Member.Id))
+                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
+            if(playerName != null && user == null)
             {
                 embed.Title = "No user can be found (Names are case sensitive)";
                 embed.Color = DiscordColor.Red;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            else if (ctx.Member.IsBot != true)
+            else if (user != null || GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 if(user.ID == (long)ctx.Member.Id)
                 {
-                    user.Name = ctx.Member.Username;
-                    user.Image = ctx.Member.AvatarUrl;
+                    GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 }
                 embed.Title = $"{ user.Name }'s Inventory";
                 Bot.PlayerDatabase.UpdatePlayer(user);
@@ -143,18 +121,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else if(ctx.Member.IsBot != true)
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 var obtained = "";
@@ -830,18 +797,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (String.IsNullOrEmpty(itemName))
@@ -966,18 +922,7 @@ namespace GameTime.Commands
         {
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             var embed = new DiscordEmbedBuilder();
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 embed.Title = $"{ctx.Member.Username}'s Balance";
@@ -1346,18 +1291,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             var interactivity = ctx.Client.GetInteractivity();
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (String.IsNullOrEmpty(itemName))
@@ -1504,19 +1438,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Description += " Use g/hour again or g/h to claim your crate.";
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (DateTime.Now - user.CooldownHourStartTime >= user.HourCooldown)
@@ -1528,22 +1450,7 @@ namespace GameTime.Commands
                     user.CooldownHourEndTime = user.CooldownHourStartTime.Add(user.HourCooldown);
                     Bot.PlayerDatabase.UpdatePlayer(user);
                     embed.Title = $"You got {item.Name}";
-                    if (item.Rarity == Rarity.Common)
-                    {
-                        embed.Color = DiscordColor.Gray;
-                    }
-                    else if (item.Rarity == Rarity.Uncommon)
-                    {
-                        embed.Color = DiscordColor.DarkGreen;
-                    }
-                    else if (item.Rarity == Rarity.Rare)
-                    {
-                        embed.Color = DiscordColor.Blue;
-                    }
-                    else if (item.Rarity == Rarity.Epic)
-                    {
-                        embed.Color = DiscordColor.Gold;
-                    }
+                    embed.Color = GeneralFunctions.RarityColor(item);
                     embed.Description = "You can do this again in the next hour";
                 }
                 else
@@ -1564,19 +1471,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Description += " Use g/daily again or g/d or g/day to claim your crate.";
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 if (DateTime.Now - user.DailyCooldownStart >= user.DailyCooldown)
@@ -1606,22 +1501,7 @@ namespace GameTime.Commands
                     user.DailyCooldownEnd = user.DailyCooldownStart.Add(user.DailyCooldown);
                     Bot.PlayerDatabase.UpdatePlayer(user);
                     embed.Title = $"You got {item.Name}";
-                    if (item.Rarity == Rarity.Common)
-                    {
-                        embed.Color = DiscordColor.Gray;
-                    }
-                    else if (item.Rarity == Rarity.Uncommon)
-                    {
-                        embed.Color = DiscordColor.DarkGreen;
-                    }
-                    else if (item.Rarity == Rarity.Rare)
-                    {
-                        embed.Color = DiscordColor.Blue;
-                    }
-                    else if (item.Rarity == Rarity.Epic)
-                    {
-                        embed.Color = DiscordColor.Gold;
-                    }
+                    embed.Color = GeneralFunctions.RarityColor(item);
                     embed.Description = "You can do this again in the next day";
                 }
                 else
@@ -1643,19 +1523,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             var isOptedIn = false;
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 foreach (var guild in user.GuildsOptedIn)
                 {
@@ -1744,13 +1612,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             var isOptedIn = false;
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else
+            if (GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 foreach (var guild in user.GuildsOptedIn)
                 {
@@ -1759,76 +1621,74 @@ namespace GameTime.Commands
                         isOptedIn = true;
                     }
                 }
-            }
-            if (isOptedIn == true)
-            {
-                if (DateTime.Now - user.OptCooldownStart >= user.OptCooldown)
+                if (isOptedIn == true)
                 {
-                    var interactivity = ctx.Client.GetInteractivity();
-                    embed.Title = "Confirmation";
-                    embed.Description = "Are you sure you want to opt out of the server? You will not be able to attack and will be safe from all attacks. Reply yes or no in the next 10 seconds.";
-                    embed.Color = new DiscordColor(user.PlayerColor);
-                    await ctx.Channel.SendMessageAsync(embed: embed);
-                    var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel, TimeSpan.FromSeconds(10));
-                    if (response.TimedOut)
+                    if (DateTime.Now - user.OptCooldownStart >= user.OptCooldown)
                     {
-                        embed.Title = $"Not Opted Out";
-                        embed.Description = "You chose to stay opted in.";
+                        var interactivity = ctx.Client.GetInteractivity();
+                        embed.Title = "Confirmation";
+                        embed.Description = "Are you sure you want to opt out of the server? You will not be able to attack and will be safe from all attacks. Reply yes or no in the next 10 seconds.";
                         embed.Color = new DiscordColor(user.PlayerColor);
-                        goto done;
-                    }
-                    else if (response.Result.Content.ToLower() != "yes" && response.Result.Content.ToLower() != "no")
-                    {
-                        var select = false;
-                        while (select == false)
+                        await ctx.Channel.SendMessageAsync(embed: embed);
+                        var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel, TimeSpan.FromSeconds(10));
+                        if (response.TimedOut)
                         {
-                            embed.Title = $"Choose a Valid Response";
-                            embed.Description = "Reply yes or no";
-                            embed.Color = DiscordColor.Red;
-                            await ctx.Channel.SendMessageAsync(embed: embed);
-                            response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member, TimeSpan.FromSeconds(10));
-                            if (response.TimedOut)
+                            embed.Title = $"Not Opted Out";
+                            embed.Description = "You chose to stay opted in.";
+                            embed.Color = new DiscordColor(user.PlayerColor);
+                        }
+                        else if (response.Result.Content.ToLower() != "yes" && response.Result.Content.ToLower() != "no")
+                        {
+                            var select = false;
+                            while (select == false)
                             {
-                                embed.Title = $"Not Opted In";
-                                embed.Description = "You chose to stay opted out.";
-                                embed.Color = new DiscordColor(user.PlayerColor);
-                            }
-                            else if (response.Result.Content.ToLower() == "yes" || response.Result.Content.ToLower() == "no")
-                            {
-                                select = true;
+                                embed.Title = $"Choose a Valid Response";
+                                embed.Description = "Reply yes or no";
+                                embed.Color = DiscordColor.Red;
+                                await ctx.Channel.SendMessageAsync(embed: embed);
+                                response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member, TimeSpan.FromSeconds(10));
+                                if (response.TimedOut)
+                                {
+                                    embed.Title = $"Not Opted In";
+                                    embed.Description = "You chose to stay opted out.";
+                                    embed.Color = new DiscordColor(user.PlayerColor);
+                                }
+                                else if (response.Result.Content.ToLower() == "yes" || response.Result.Content.ToLower() == "no")
+                                {
+                                    select = true;
+                                }
                             }
                         }
+                        else if (response.Result.Content != null && response.Result.Content.ToLower() == "yes")
+                        {
+                            embed.Title = $"You Opted Out";
+                            embed.Description = "You are now opted out of server.";
+                            embed.Color = DiscordColor.Green;
+                            user.GuildsOptedIn.Remove(Convert.ToInt64(ctx.Guild.Id));
+                        }
+                        else if (response.Result.Content != null && response.Result.Content.ToLower() == "no")
+                        {
+                            embed.Title = $"Not Opted Out";
+                            embed.Description = "You chose to stay opted in.";
+                            embed.Color = new DiscordColor(user.PlayerColor);
+                        }
+                        Bot.PlayerDatabase.UpdatePlayer(user);
                     }
-                    if (response.Result.Content != null && response.Result.Content.ToLower() == "yes")
+                    else
                     {
-                        embed.Title = $"You Opted Out";
-                        embed.Description = "You are now opted out of server.";
-                        embed.Color = DiscordColor.Green;
-                        user.GuildsOptedIn.Remove(Convert.ToInt64(ctx.Guild.Id));
+                        embed.Title = "Opt Cooldown Still Active";
+                        var cooldown = user.GetOptCooldown();
+                        embed.Description = $"{cooldown}";
+                        embed.Color = DiscordColor.Red;
+                        Bot.PlayerDatabase.UpdatePlayer(user);
                     }
-                    else if (response.Result.Content != null && response.Result.Content.ToLower() == "no")
-                    {
-                        embed.Title = $"Not Opted Out";
-                        embed.Description = "You chose to stay opted in.";
-                        embed.Color = new DiscordColor(user.PlayerColor);
-                    }
-                done:
-                    Bot.PlayerDatabase.UpdatePlayer(user);
                 }
                 else
                 {
-                    embed.Title = "Opt Cooldown Still Active";
-                    var cooldown = user.GetOptCooldown();
-                    embed.Description = $"{cooldown}";
+                    embed.Title = "You Aren't Opted In";
+                    embed.Description = "You aren't opted into the server.";
                     embed.Color = DiscordColor.Red;
-                    Bot.PlayerDatabase.UpdatePlayer(user);
                 }
-            }
-            else
-            {
-                embed.Title = "You Aren't Opted In";
-                embed.Description = "You aren't opted into the server.";
-                embed.Color = DiscordColor.Red;
             }
             await ctx.Channel.SendMessageAsync(embed: embed);
         }
@@ -1839,19 +1699,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Description += " Use g/weekly again or g/w or g/week to claim your crate.";
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 if (DateTime.Now - user.WeeklyCooldownStart >= user.WeeklyCooldown)
                 {
@@ -1901,19 +1749,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Description += " Use g/monthly again or g/m or g/month to claim your crate.";
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if(user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 Bot.PlayerDatabase.UpdatePlayer(user);
                 if (DateTime.Now - user.MonthlyCooldownStart >= user.MonthlyCooldown)
@@ -1964,12 +1800,7 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 Bot.PlayerDatabase.UpdatePlayer(user);
                 embed.Title = "Cooldowns:";
@@ -1993,20 +1824,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             Bot.PlayerDatabase.UpdatePlayer(user);
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if(user.GameCooldownIgnore == false)
-            {
-                embed.Title = "Minigame Cooldown Removed";
-                embed.Description = "Minigame cooldowns will no longer be applied to you. You will not be able to collect rewards from minigames. This does not apply to scrambler.";
-                embed.Color = DiscordColor.Green;
-                user.GameCooldownIgnore = true;
-                Bot.PlayerDatabase.UpdatePlayer(user);
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 embed.Title = "Cooldown Already Ignored";
                 embed.Description = "You are already ignoring minigame cooldowns.";
@@ -2021,20 +1839,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             Bot.PlayerDatabase.UpdatePlayer(user);
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-            }
-            else if(user.GameCooldownIgnore == true)
-            {
-                embed.Title = "Minigame Cooldown Applied";
-                embed.Description = "Minigame cooldowns will now be applied to you. You can now get rewards from minigames.";
-                embed.Color = DiscordColor.Green;
-                user.GameCooldownIgnore = false;
-                Bot.PlayerDatabase.UpdatePlayer(user);
-            }
-            else
+            if(GeneralFunctions.ValidatePlayer(ctx, user))
             {
                 embed.Title = "Cooldown Already Applied";
                 embed.Description = "You are already not ignoring minigame cooldowns.";
@@ -2051,1067 +1856,1057 @@ namespace GameTime.Commands
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             var partnerInv = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(partner.Id));
             var interactivity = ctx.Client.GetInteractivity();
-            if (user == null)
+            if (GeneralFunctions.ValidatePlayer(ctx, user))
             {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (user.TradeBan == true)
-            {
-                embed.Title = "You Currently Have A Trade Ban";
-                embed.Description = "A trade ban prevents you from being able to trade items with GameTime. This ban can be appealed in the trade appeal thread under the appeal section.";
-                embed.Color = DiscordColor.Red;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (partner == null)
-            {
-                embed.Title = "Could Not Locate Player";
-                embed.Description = "Could not find the player you attempted to trade with.";
-                embed.Color = DiscordColor.Red;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (partnerInv == null)
-            {
-                embed.Title = "Could Not Locate Player";
-                embed.Description = "Could not find the player you attempted to trade with.";
-                embed.Color = DiscordColor.Red;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (user.IsBanned == true)
-            {
-                embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
-                embed.Color = DiscordColor.Red;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else
-            {
-                embed.Description = $"{partner.Mention} do you agree to trade(Yes/No)?\nYou have 60 seconds to answer.";
-                embed.Color = DiscordColor.Gold;
-                var message = await ctx.Channel.SendMessageAsync(embed: embed);
-            repeat:
-                var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == partner, TimeSpan.FromSeconds(60));
-                try
+                if (user.TradeBan == true)
                 {
-                    await response.Result.DeleteAsync();
-                }
-                catch
-                {
-
-                }
-                if (response.TimedOut)
-                {
-                    embed.Description = $"{partner.Username} did not answer. Trade has been cancelled.";
+                    embed.Title = "You Currently Have A Trade Ban";
+                    embed.Description = "A trade ban prevents you from being able to trade items with GameTime. This ban can be appealed in the trade appeal thread under the appeal section.";
                     embed.Color = DiscordColor.Red;
                     await ctx.Channel.SendMessageAsync(embed: embed);
                 }
-                else if (response.Result.Content.ToLower() == "no")
+                else if (partner == null)
                 {
-                    embed.Description = $"{partner.Username} declined. Trade has been cancelled.";
+                    embed.Title = "Could Not Locate Player";
+                    embed.Description = "Could not find the player you attempted to trade with.";
                     embed.Color = DiscordColor.Red;
                     await ctx.Channel.SendMessageAsync(embed: embed);
                 }
-                else if (response.Result.Content.ToLower() == "yes")
+                else if (partnerInv == null)
                 {
-                    embed.Title = "Trade";
-                    embed.Description = $"{ctx.Member.Username} & {partner.Username}\nCommands: +add\n+remove\n+confirm\nunconfirm\n+cancel";
-                    embed.AddField($"{ctx.Member.Username}", "None");
-                    embed.AddField($"{partner.Username}", "None");
-                    DiscordEmbed bembed = embed;
-                    await message.ModifyAsync(null, bembed);
-                    var userConfirm = false;
-                    var partnerConfirm = false;
-                    var userItems = new List<Item>();
-                    var partnerItems = new List<Item>();
-                    var display = "";
-                    var userStatus = "Unconfirmed";
-                    var partnerStatus = "Unconfirmed";
-                    while (userConfirm == false || partnerConfirm == false)
+                    embed.Title = "Could Not Locate Player";
+                    embed.Description = "Could not find the player you attempted to trade with.";
+                    embed.Color = DiscordColor.Red;
+                    await ctx.Channel.SendMessageAsync(embed: embed);
+                }
+                else
+                {
+                    embed.Description = $"{partner.Mention} do you agree to trade(Yes/No)?\nYou have 60 seconds to answer.";
+                    embed.Color = DiscordColor.Gold;
+                    var message = await ctx.Channel.SendMessageAsync(embed: embed);
+                repeat:
+                    var response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == partner, TimeSpan.FromSeconds(60));
+                    try
                     {
-                        display = "";
-                        var name = "";
-                        response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member || x.Author == partner, TimeSpan.FromSeconds(180));
-                        if (response.Result.Content.ToLower().Contains("+add"))
-                        {
-                            var Name = response.Result.Content.Split("+add ");
-                            if (Name.Length > 1)
-                            {
-                                name = Name[1];
-                            }
-                        }
-                        else if (response.Result.Content.ToLower().Contains("+remove"))
-                        {
-                            var Name = response.Result.Content.Split("+remove ");
-                            if (Name.Length > 1)
-                            {
-                                name = Name[1];
-                            }
-                        }
-                        if (response.TimedOut)
-                        {
-                            embed.ClearFields();
-                            embed.Description = "Trade timed out. Trade has been cancelled.";
-                            embed.Color = DiscordColor.Red;
-                            bembed = embed;
-                            await message.ModifyAsync(null, bembed);
-                        }
-                        else if (response.Result.Author == ctx.Member)
-                        {
-                            if (response.Result.Content.ToLower() == "+unconfirm")
-                            {
-                                userConfirm = false;
-                                userStatus = "Unconfirmed";
-                                var embed2 = new DiscordEmbedBuilder();
-                                embed2.Title = $"{ctx.Member.Username} unconfirmed.";
-                                embed2.Color = DiscordColor.Red;
-                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower() == "g/i" || response.Result.Content.ToLower() == "g/inv" || response.Result.Content.ToLower() == "g/inventory")
-                            {
-
-                            }
-                            else if (response.Result.Content.ToLower() == "+cancel")
-                            {
-                                embed.ClearFields();
-                                embed.Title = "Trade Cancelled";
-                                embed.Description = $"{ctx.Member.Username} cancelled the trade.";
-                                embed.Color = DiscordColor.Red;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                                break;
-                            }
-                            else if (userConfirm == true)
-                            {
-                                var embed2 = new DiscordEmbedBuilder();
-                                embed2.Title = $"{ctx.Member.Username} cannot modify their end.";
-                                embed2.Color = DiscordColor.Red;
-                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower() == "+confirm")
-                            {
-                                userConfirm = true;
-                                if (userConfirm == true)
-                                {
-                                    userStatus = "Confirmed";
-                                }
-                                if (partnerConfirm == true)
-                                {
-                                    partnerStatus = "Confirmed";
-                                }
-                                embed.ClearFields();
-                                foreach (var it in userItems)
-                                {
-                                    display += $"{it.Name} x{it.Multiple}\n";
-                                }
-                                if (display == "")
-                                {
-                                    display = "None";
-                                }
-                                embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
-                                display = "";
-                                foreach (var it in partnerItems)
-                                {
-                                    display += $"{it.Name} x{it.Multiple}\n";
-                                }
-                                if (display == "")
-                                {
-                                    display = "None";
-                                }
-                                embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower().Contains("+remove"))
-                            {
-                                var amount = 1;
-                                var itemName = name.ToLower();
-                                var split = name.ToLower().Split(" x");
-                                if (split.Count() > 1)
-                                {
-                                    if (int.Parse(split[1]) > 0)
-                                    {
-                                        try
-                                        {
-                                            amount = int.Parse(split[1]);
-                                        }
-                                        catch
-                                        {
-                                            amount = 1;
-                                        }
-                                    }
-                                    itemName = split[0];
-                                }
-                                Item item = null;
-                                foreach (var i in userItems)
-                                {
-                                    if (i.Name.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                    else if (i.Subname.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                }
-                                if (item != null)
-                                {
-                                    if (item.Multiple + 1 < amount)
-                                    {
-                                        var embed2 = new DiscordEmbedBuilder();
-                                        embed2.Title = "Not Enough Items";
-                                        embed2.AddField("Error", "You are attempting to remove too many items.");
-                                        embed2.Color = DiscordColor.Red;
-                                        await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    }
-                                    else
-                                    {
-                                        display = "";
-                                        if (item.Multiple >= 1 && item.Multiple - amount > 0)
-                                        {
-                                            item.Multiple -= amount;
-                                        }
-                                        else if (item.Multiple - amount == 0)
-                                        {
-                                            userItems.Remove(item);
-                                        }
-                                        else
-                                        {
-                                            var embed2 = new DiscordEmbedBuilder();
-                                            embed2.Title = "Not Enough Items";
-                                            embed2.AddField("Error", "You are attempting to remove too many items.");
-                                            embed2.Color = DiscordColor.Red;
-                                            await ctx.Channel.SendMessageAsync(embed: embed2);
-                                        }
-                                        embed.ClearFields();
-                                        foreach (var it in userItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
-                                        display = "";
-                                        foreach (var it in partnerItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
-                                        bembed = embed;
-                                        await message.ModifyAsync(null, bembed);
-                                        try
-                                        {
-                                            await response.Result.DeleteAsync();
-                                        }
-                                        catch
-                                        {
-
-                                        }
-                                    }
-                                }
-                                else if (response.Result.Content.ToLower().Contains("+remove"))
-                                {
-                                    var embed2 = new DiscordEmbedBuilder();
-                                    embed2.Title = "Item Not Found";
-                                    embed2.AddField("Error", "Item is not being used in trade.");
-                                    embed2.Color = DiscordColor.Red;
-                                    await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    try
-                                    {
-                                        await response.Result.DeleteAsync();
-                                    }
-                                    catch
-                                    {
-
-                                    }
-                                }
-                                else
-                                {
-
-                                }
-                            }
-                            else
-                            {
-                                var amount = 1;
-                                var itemName = name.ToLower();
-                                var split = name.ToLower().Split(" x");
-                                if (split.Count() > 1)
-                                {
-                                    if (int.Parse(split[1]) > 0)
-                                    {
-                                        try
-                                        {
-                                            amount = int.Parse(split[1]);
-                                        }
-                                        catch
-                                        {
-                                            amount = 1;
-                                        }
-                                    }
-                                    itemName = split[0];
-                                }
-                                Item item = null;
-                                foreach (var i in user.Inventory)
-                                {
-                                    if (i.Name.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                    else if (i.Subname.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                }
-                                if (item != null)
-                                {
-                                    if (item.Multiple < amount)
-                                    {
-                                        var embed2 = new DiscordEmbedBuilder();
-                                        embed2.Title = "Not Enough Items";
-                                        embed2.AddField("Error", "You do not have enough of that item in your inventory.");
-                                        embed2.Color = DiscordColor.Red;
-                                        await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    }
-                                    else
-                                    {
-                                        foreach (var i in Bot.Items.AllItems)
-                                        {
-                                            if (i.Name.ToLower() == itemName.ToLower())
-                                            {
-                                                item = i;
-                                            }
-                                            else if (i.Subname.ToLower() == itemName.ToLower())
-                                            {
-                                                item = i;
-                                            }
-                                        }
-                                        display = "";
-                                        var isInList = false;
-                                        Item copy = null;
-                                        foreach (var it in userItems)
-                                        {
-                                            if (it.ID == item.ID)
-                                            {
-                                                copy = it;
-                                                isInList = true;
-                                                break;
-                                            }
-                                        }
-                                        if (isInList == false)
-                                        {
-                                            item = Bot.Items.GetItem(item);
-                                            userItems.Add(item);
-                                            item.Multiple = amount;
-                                        }
-                                        else
-                                        {
-                                            var invalid = false;
-                                            foreach (var it in userItems)
-                                            {
-                                                invalid = false;
-                                                foreach (var invItem in user.Inventory)
-                                                {
-                                                    if (it.ID == invItem.ID && it.Multiple + amount > invItem.Multiple)
-                                                    {
-                                                        invalid = true;
-                                                    }
-                                                }
-                                            }
-                                            if (invalid != true)
-                                            {
-                                                copy.Multiple += amount;
-                                            }
-                                            else
-                                            {
-                                                var embed2 = new DiscordEmbedBuilder();
-                                                embed2.Title = "Not Enough Items";
-                                                embed2.AddField("Error", "You do not have enough of that item in your inventory.");
-                                                embed2.Color = DiscordColor.Red;
-                                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                            }
-                                        }
-                                        embed.ClearFields();
-                                        foreach (var it in userItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
-                                        display = "";
-                                        foreach (var it in partnerItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
-                                        bembed = embed;
-                                        await message.ModifyAsync(null, bembed);
-                                        try
-                                        {
-                                            await response.Result.DeleteAsync();
-                                        }
-                                        catch
-                                        {
-
-                                        }
-                                    }
-                                }
-                                else if (response.Result.Content.ToLower().Contains("+add") && item == null)
-                                {
-                                    var embed2 = new DiscordEmbedBuilder();
-                                    embed2.Title = $"{ctx.Member.Username} entered an invalid item or does not have the item.";
-                                    embed2.Color = DiscordColor.Red;
-                                    await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    try
-                                    {
-                                        await response.Result.DeleteAsync();
-                                    }
-                                    catch
-                                    {
-
-                                    }
-                                }
-                                else
-                                {
-
-                                }
-                            }
-                        }
-                        else if (response.Result.Author == partner)
-                        {
-                            if (response.Result.Content.ToLower() == "+unconfirm")
-                            {
-                                userConfirm = false;
-                                userStatus = "Unconfirmed";
-                                var embed2 = new DiscordEmbedBuilder();
-                                embed2.Title = $"{ctx.Member.Username} unconfirmed.";
-                                embed2.Color = DiscordColor.Red;
-                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower() == "g/i" || response.Result.Content.ToLower() == "g/inv" || response.Result.Content.ToLower() == "g/inventory")
-                            {
-
-                            }
-                            else if (response.Result.Content.ToLower() == "+cancel")
-                            {
-                                embed.ClearFields();
-                                embed.Title = "Trade Cancelled";
-                                embed.Description = $"{partner.Username} cancelled the trade.";
-                                embed.Color = DiscordColor.Red;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                                break;
-                            }
-                            else if (partnerConfirm == true)
-                            {
-                                var embed2 = new DiscordEmbedBuilder();
-                                embed2.Title = $"{partner.Username} cannot modify their end.";
-                                embed2.Color = DiscordColor.Red;
-                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower() == "+unconfirm")
-                            {
-                                partnerConfirm = false;
-                                partnerStatus = "Unconfirmed";
-                                var embed2 = new DiscordEmbedBuilder();
-                                embed2.Title = $"{partner.Username} unconfirmed.";
-                                embed2.Color = DiscordColor.Red;
-                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower() == "+confirm")
-                            {
-                                partnerConfirm = true;
-                                if (userConfirm == true)
-                                {
-                                    userStatus = "Confirmed";
-                                }
-                                if (partnerConfirm == true)
-                                {
-                                    partnerStatus = "Confirmed";
-                                }
-                                embed.ClearFields();
-                                foreach (var it in userItems)
-                                {
-                                    display += $"{it.Name} x{it.Multiple}\n";
-                                }
-                                if (display == "")
-                                {
-                                    display = "None";
-                                }
-                                embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
-                                display = "";
-                                foreach (var it in partnerItems)
-                                {
-                                    display += $"{it.Name} x{it.Multiple}\n";
-                                }
-                                if (display == "")
-                                {
-                                    display = "None";
-                                }
-                                embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                                try
-                                {
-                                    await response.Result.DeleteAsync();
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-                            else if (response.Result.Content.ToLower().Contains("+remove"))
-                            {
-                                var amount = 1;
-                                var itemName = name.ToLower();
-                                var split = name.ToLower().Split(" x");
-                                if (split.Count() > 1)
-                                {
-                                    if (int.Parse(split[1]) > 0)
-                                    {
-                                        try
-                                        {
-                                            amount = int.Parse(split[1]);
-                                        }
-                                        catch
-                                        {
-                                            amount = 1;
-                                        }
-                                    }
-                                    itemName = split[0];
-                                }
-                                Item item = null;
-                                foreach (var i in partnerItems)
-                                {
-                                    if (i.Name.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                    else if (i.Subname.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                }
-                                if (item != null)
-                                {
-                                    if (item.Multiple + 1 < amount)
-                                    {
-                                        var embed2 = new DiscordEmbedBuilder();
-                                        embed2.Title = "Not Enough Items";
-                                        embed2.AddField("Error", "You are attempting to remove too many items.");
-                                        embed2.Color = DiscordColor.Red;
-                                        await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    }
-                                    else
-                                    {
-                                        display = "";
-                                        if (item.Multiple >= 1 && item.Multiple - amount > 0)
-                                        {
-                                            item.Multiple -= amount;
-                                        }
-                                        else if (item.Multiple - amount == 0)
-                                        {
-                                            partnerItems.Remove(item);
-                                        }
-                                        else
-                                        {
-                                            var embed2 = new DiscordEmbedBuilder();
-                                            embed2.Title = "Not Enough Items";
-                                            embed2.AddField("Error", "You are attempting to remove too many items.");
-                                            embed2.Color = DiscordColor.Red;
-                                            await ctx.Channel.SendMessageAsync(embed: embed2);
-                                        }
-                                        embed.ClearFields();
-                                        foreach (var it in userItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
-                                        display = "";
-                                        foreach (var it in partnerItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
-                                        bembed = embed;
-                                        await message.ModifyAsync(null, bembed);
-                                        try
-                                        {
-                                            await response.Result.DeleteAsync();
-                                        }
-                                        catch
-                                        {
-
-                                        }
-                                    }
-                                }
-                                else if (response.Result.Content.ToLower().Contains("+remove"))
-                                {
-                                    var embed2 = new DiscordEmbedBuilder();
-                                    embed2.Title = "Item Not Found";
-                                    embed2.AddField("Error", "Item is not being used in trade.");
-                                    embed2.Color = DiscordColor.Red;
-                                    await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    try
-                                    {
-                                        await response.Result.DeleteAsync();
-                                    }
-                                    catch
-                                    {
-
-                                    }
-                                }
-                                else
-                                {
-
-                                }
-                            }
-                            else
-                            {
-                                var amount = 1;
-                                var itemName = name.ToLower();
-                                var split = name.ToLower().Split(" x");
-                                if (split.Count() > 1)
-                                {
-                                    if (int.Parse(split[1]) > 0)
-                                    {
-                                        try
-                                        {
-                                            amount = int.Parse(split[1]);
-                                        }
-                                        catch
-                                        {
-                                            amount = 1;
-                                        }
-                                    }
-                                    itemName = split[0];
-                                }
-                                Item item = null;
-                                foreach (var i in partnerInv.Inventory)
-                                {
-                                    if (i.Name.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                    else if (i.Subname.ToLower() == itemName.ToLower())
-                                    {
-                                        item = i;
-                                    }
-                                }
-                                if (item != null)
-                                {
-                                    if (item.Multiple < amount)
-                                    {
-                                        var embed2 = new DiscordEmbedBuilder();
-                                        embed2.Title = "Not Enough Items";
-                                        embed2.AddField("Error", "You do not have enough of that item in your inventory.");
-                                        embed2.Color = DiscordColor.Red;
-                                        await ctx.Channel.SendMessageAsync(embed: embed2);
-                                    }
-                                    else
-                                    {
-                                        foreach (var i in Bot.Items.AllItems)
-                                        {
-                                            if (i.Name.ToLower() == itemName.ToLower())
-                                            {
-                                                item = i;
-                                            }
-                                            else if (i.Subname.ToLower() == itemName.ToLower())
-                                            {
-                                                item = i;
-                                            }
-                                        }
-                                        display = "";
-                                        var isInList = false;
-                                        Item copy = null;
-                                        foreach (var it in partnerItems)
-                                        {
-                                            if (it.ID == item.ID)
-                                            {
-                                                copy = it;
-                                                isInList = true;
-                                                break;
-                                            }
-                                        }
-                                        if (isInList == false)
-                                        {
-                                            item = Bot.Items.GetItem(item);
-                                            partnerItems.Add(item);
-                                            item.Multiple = amount;
-                                        }
-                                        else
-                                        {
-                                            var invalid = false;
-                                            foreach (var it in partnerItems)
-                                            {
-                                                invalid = false;
-                                                foreach (var invItem in partnerInv.Inventory)
-                                                {
-                                                    if (it.ID == invItem.ID && it.Multiple + amount > invItem.Multiple)
-                                                    {
-                                                        invalid = true;
-                                                    }
-                                                }
-                                            }
-                                            if (invalid != true)
-                                            {
-                                                copy.Multiple += amount;
-                                            }
-                                            else
-                                            {
-                                                var embed2 = new DiscordEmbedBuilder();
-                                                embed2.Title = "Not Enough Items";
-                                                embed2.AddField("Error", "You do not have enough of that item in your inventory.");
-                                                embed2.Color = DiscordColor.Red;
-                                                await ctx.Channel.SendMessageAsync(embed: embed2);
-                                            }
-                                        }
-                                        embed.ClearFields();
-                                        foreach (var it in userItems)
-                                        {
-                                            display += $"{it.Name} x{it.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
-                                        display = "";
-                                        foreach (var it2 in partnerItems)
-                                        {
-                                            display += $"{it2.Name} x{it2.Multiple}\n";
-                                        }
-                                        if (display == "")
-                                        {
-                                            display = "None";
-                                        }
-                                        embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
-                                        embed.WithFooter($"{ctx.Member.Id} & {partner.Id}\nIn order with name");
-                                        bembed = embed;
-                                        embed.Footer = null;
-                                        await message.ModifyAsync(null, bembed);
-                                    }
-                                    try
-                                    {
-                                        await response.Result.DeleteAsync();
-                                    }
-                                    catch
-                                    {
-
-                                    }
-                                }
-                                else if (response.Result.Content.ToLower().Contains("+add") && item == null)
-                                {
-                                    var embed2 = new DiscordEmbedBuilder();
-                                    embed2.Title = $"{partner.Username} entered an invalid item or does not have the item.";
-                                    embed2.Color = DiscordColor.Red;
-                                    await ctx.Channel.SendMessageAsync(embed: embed2);
-                                }
-                                else
-                                {
-
-                                }
-                            }
-                        }
+                        await response.Result.DeleteAsync();
                     }
-                    var finalTrade = bembed;
-                    if (userConfirm == true && partnerConfirm == true)
+                    catch
                     {
-                        userConfirm = false;
-                        partnerConfirm = false;
-                        var status = $"Both parties must confirm the trade with +accept. Use +refuse to cancel. Once you accept you cannot use +refuse. \n{ctx.Member.Username} Agreement: {userConfirm}\n{partner.Username} Agreement: {partnerConfirm}";
-                        embed.ClearFields();
-                        embed.Title = "Confirmation";
-                        embed.Description = status;
-                        embed.Color = DiscordColor.Yellow;
-                        message = await ctx.Channel.SendMessageAsync(embed: embed);
+
+                    }
+                    if (response.TimedOut)
+                    {
+                        embed.Description = $"{partner.Username} did not answer. Trade has been cancelled.";
+                        embed.Color = DiscordColor.Red;
+                        await ctx.Channel.SendMessageAsync(embed: embed);
+                    }
+                    else if (response.Result.Content.ToLower() == "no")
+                    {
+                        embed.Description = $"{partner.Username} declined. Trade has been cancelled.";
+                        embed.Color = DiscordColor.Red;
+                        await ctx.Channel.SendMessageAsync(embed: embed);
+                    }
+                    else if (response.Result.Content.ToLower() == "yes")
+                    {
+                        embed.Title = "Trade";
+                        embed.Description = $"{ctx.Member.Username} & {partner.Username}\nCommands: +add\n+remove\n+confirm\nunconfirm\n+cancel";
+                        embed.AddField($"{ctx.Member.Username}", "None");
+                        embed.AddField($"{partner.Username}", "None");
+                        DiscordEmbed bembed = embed;
+                        await message.ModifyAsync(null, bembed);
+                        var userConfirm = false;
+                        var partnerConfirm = false;
+                        var userItems = new List<Item>();
+                        var partnerItems = new List<Item>();
+                        var display = "";
+                        var userStatus = "Unconfirmed";
+                        var partnerStatus = "Unconfirmed";
                         while (userConfirm == false || partnerConfirm == false)
                         {
-                            response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member || x.Author == partner, TimeSpan.FromSeconds(60));
+                            display = "";
+                            var name = "";
+                            response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member || x.Author == partner, TimeSpan.FromSeconds(180));
+                            if (response.Result.Content.ToLower().Contains("+add"))
+                            {
+                                var Name = response.Result.Content.Split("+add ");
+                                if (Name.Length > 1)
+                                {
+                                    name = Name[1];
+                                }
+                            }
+                            else if (response.Result.Content.ToLower().Contains("+remove"))
+                            {
+                                var Name = response.Result.Content.Split("+remove ");
+                                if (Name.Length > 1)
+                                {
+                                    name = Name[1];
+                                }
+                            }
                             if (response.TimedOut)
                             {
-                                var player = "";
-                                if (userConfirm == false)
-                                {
-                                    player += ctx.Member.Username;
-                                }
-                                else if (partnerConfirm == false)
-                                {
-                                    player += partner.Username;
-                                }
-                                else
-                                {
-                                    player += $"{ctx.Member.Username} & {partner.Username}";
-                                }
-                                embed.Title = "Trade Failed";
-                                embed.Description = $"{partner.Username} did not respond to the trade.";
+                                embed.ClearFields();
+                                embed.Description = "Trade timed out. Trade has been cancelled.";
                                 embed.Color = DiscordColor.Red;
                                 bembed = embed;
                                 await message.ModifyAsync(null, bembed);
-                                break;
                             }
-                            else if (response.Result.Author == ctx.Member && response.Result.Content.ToLower() == "+accept" && userConfirm != true)
+                            else if (response.Result.Author == ctx.Member)
                             {
-                                userConfirm = true;
-                                status = $"Both parties must confirm the trade with +accept.\n{ctx.Member.Username} Agreement: {userConfirm}\n{partner.Username} Agreement: {partnerConfirm}";
-                                embed.Description = status;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                            }
-                            else if (response.Result.Author == partner && response.Result.Content.ToLower() == "+accept" && partnerConfirm != true)
-                            {
-                                partnerConfirm = true;
-                                status = $"Both parties must confirm the trade with +accept.\n{ctx.Member.Username} Agreement: {userConfirm}\n{partner.Username} Agreement: {partnerConfirm}";
-                                embed.Description = status;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                            }
-                            else if (response.Result.Author == ctx.Member && response.Result.Content.ToLower() == "+refuse" && partnerConfirm != true)
-                            {
-                                var player = "";
-                                if (userConfirm == false)
+                                if (response.Result.Content.ToLower() == "+unconfirm")
                                 {
-                                    player += ctx.Member.Username;
+                                    userConfirm = false;
+                                    userStatus = "Unconfirmed";
+                                    var embed2 = new DiscordEmbedBuilder();
+                                    embed2.Title = $"{ctx.Member.Username} unconfirmed.";
+                                    embed2.Color = DiscordColor.Red;
+                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
                                 }
-                                else if (partnerConfirm == false)
+                                else if (response.Result.Content.ToLower() == "g/i" || response.Result.Content.ToLower() == "g/inv" || response.Result.Content.ToLower() == "g/inventory")
                                 {
-                                    player += partner.Username;
+
+                                }
+                                else if (response.Result.Content.ToLower() == "+cancel")
+                                {
+                                    embed.ClearFields();
+                                    embed.Title = "Trade Cancelled";
+                                    embed.Description = $"{ctx.Member.Username} cancelled the trade.";
+                                    embed.Color = DiscordColor.Red;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                    break;
+                                }
+                                else if (userConfirm == true)
+                                {
+                                    var embed2 = new DiscordEmbedBuilder();
+                                    embed2.Title = $"{ctx.Member.Username} cannot modify their end.";
+                                    embed2.Color = DiscordColor.Red;
+                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                                else if (response.Result.Content.ToLower() == "+confirm")
+                                {
+                                    userConfirm = true;
+                                    if (userConfirm == true)
+                                    {
+                                        userStatus = "Confirmed";
+                                    }
+                                    if (partnerConfirm == true)
+                                    {
+                                        partnerStatus = "Confirmed";
+                                    }
+                                    embed.ClearFields();
+                                    foreach (var it in userItems)
+                                    {
+                                        display += $"{it.Name} x{it.Multiple}\n";
+                                    }
+                                    if (display == "")
+                                    {
+                                        display = "None";
+                                    }
+                                    embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
+                                    display = "";
+                                    foreach (var it in partnerItems)
+                                    {
+                                        display += $"{it.Name} x{it.Multiple}\n";
+                                    }
+                                    if (display == "")
+                                    {
+                                        display = "None";
+                                    }
+                                    embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                                else if (response.Result.Content.ToLower().Contains("+remove"))
+                                {
+                                    var amount = 1;
+                                    var itemName = name.ToLower();
+                                    var split = name.ToLower().Split(" x");
+                                    if (split.Count() > 1)
+                                    {
+                                        if (int.Parse(split[1]) > 0)
+                                        {
+                                            try
+                                            {
+                                                amount = int.Parse(split[1]);
+                                            }
+                                            catch
+                                            {
+                                                amount = 1;
+                                            }
+                                        }
+                                        itemName = split[0];
+                                    }
+                                    Item item = null;
+                                    foreach (var i in userItems)
+                                    {
+                                        if (i.Name.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                        else if (i.Subname.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                    }
+                                    if (item != null)
+                                    {
+                                        if (item.Multiple + 1 < amount)
+                                        {
+                                            var embed2 = new DiscordEmbedBuilder();
+                                            embed2.Title = "Not Enough Items";
+                                            embed2.AddField("Error", "You are attempting to remove too many items.");
+                                            embed2.Color = DiscordColor.Red;
+                                            await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        }
+                                        else
+                                        {
+                                            display = "";
+                                            if (item.Multiple >= 1 && item.Multiple - amount > 0)
+                                            {
+                                                item.Multiple -= amount;
+                                            }
+                                            else if (item.Multiple - amount == 0)
+                                            {
+                                                userItems.Remove(item);
+                                            }
+                                            else
+                                            {
+                                                var embed2 = new DiscordEmbedBuilder();
+                                                embed2.Title = "Not Enough Items";
+                                                embed2.AddField("Error", "You are attempting to remove too many items.");
+                                                embed2.Color = DiscordColor.Red;
+                                                await ctx.Channel.SendMessageAsync(embed: embed2);
+                                            }
+                                            embed.ClearFields();
+                                            foreach (var it in userItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
+                                            display = "";
+                                            foreach (var it in partnerItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                            bembed = embed;
+                                            await message.ModifyAsync(null, bembed);
+                                            try
+                                            {
+                                                await response.Result.DeleteAsync();
+                                            }
+                                            catch
+                                            {
+
+                                            }
+                                        }
+                                    }
+                                    else if (response.Result.Content.ToLower().Contains("+remove"))
+                                    {
+                                        var embed2 = new DiscordEmbedBuilder();
+                                        embed2.Title = "Item Not Found";
+                                        embed2.AddField("Error", "Item is not being used in trade.");
+                                        embed2.Color = DiscordColor.Red;
+                                        await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
+                                    }
+                                    else
+                                    {
+
+                                    }
                                 }
                                 else
                                 {
-                                    player += $"{ctx.Member.Username} & {partner.Username}";
+                                    var amount = 1;
+                                    var itemName = name.ToLower();
+                                    var split = name.ToLower().Split(" x");
+                                    if (split.Count() > 1)
+                                    {
+                                        if (int.Parse(split[1]) > 0)
+                                        {
+                                            try
+                                            {
+                                                amount = int.Parse(split[1]);
+                                            }
+                                            catch
+                                            {
+                                                amount = 1;
+                                            }
+                                        }
+                                        itemName = split[0];
+                                    }
+                                    Item item = null;
+                                    foreach (var i in user.Inventory)
+                                    {
+                                        if (i.Name.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                        else if (i.Subname.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                    }
+                                    if (item != null)
+                                    {
+                                        if (item.Multiple < amount)
+                                        {
+                                            var embed2 = new DiscordEmbedBuilder();
+                                            embed2.Title = "Not Enough Items";
+                                            embed2.AddField("Error", "You do not have enough of that item in your inventory.");
+                                            embed2.Color = DiscordColor.Red;
+                                            await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        }
+                                        else
+                                        {
+                                            foreach (var i in Bot.Items.AllItems)
+                                            {
+                                                if (i.Name.ToLower() == itemName.ToLower())
+                                                {
+                                                    item = i;
+                                                }
+                                                else if (i.Subname.ToLower() == itemName.ToLower())
+                                                {
+                                                    item = i;
+                                                }
+                                            }
+                                            display = "";
+                                            var isInList = false;
+                                            Item copy = null;
+                                            foreach (var it in userItems)
+                                            {
+                                                if (it.ID == item.ID)
+                                                {
+                                                    copy = it;
+                                                    isInList = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (isInList == false)
+                                            {
+                                                item = Bot.Items.GetItem(item);
+                                                userItems.Add(item);
+                                                item.Multiple = amount;
+                                            }
+                                            else
+                                            {
+                                                var invalid = false;
+                                                foreach (var it in userItems)
+                                                {
+                                                    invalid = false;
+                                                    foreach (var invItem in user.Inventory)
+                                                    {
+                                                        if (it.ID == invItem.ID && it.Multiple + amount > invItem.Multiple)
+                                                        {
+                                                            invalid = true;
+                                                        }
+                                                    }
+                                                }
+                                                if (invalid != true)
+                                                {
+                                                    copy.Multiple += amount;
+                                                }
+                                                else
+                                                {
+                                                    var embed2 = new DiscordEmbedBuilder();
+                                                    embed2.Title = "Not Enough Items";
+                                                    embed2.AddField("Error", "You do not have enough of that item in your inventory.");
+                                                    embed2.Color = DiscordColor.Red;
+                                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                                }
+                                            }
+                                            embed.ClearFields();
+                                            foreach (var it in userItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
+                                            display = "";
+                                            foreach (var it in partnerItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                            bembed = embed;
+                                            await message.ModifyAsync(null, bembed);
+                                            try
+                                            {
+                                                await response.Result.DeleteAsync();
+                                            }
+                                            catch
+                                            {
+
+                                            }
+                                        }
+                                    }
+                                    else if (response.Result.Content.ToLower().Contains("+add") && item == null)
+                                    {
+                                        var embed2 = new DiscordEmbedBuilder();
+                                        embed2.Title = $"{ctx.Member.Username} entered an invalid item or does not have the item.";
+                                        embed2.Color = DiscordColor.Red;
+                                        await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
+                                    }
+                                    else
+                                    {
+
+                                    }
                                 }
-                                embed.Title = "Trade Failed";
-                                embed.Description = $"{partner.Username} did not agree to the trade.";
-                                embed.Color = DiscordColor.Red;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                                break;
                             }
-                            else if (response.Result.Author == partner && response.Result.Content.ToLower() == "+refuse" && partnerConfirm != true)
+                            else if (response.Result.Author == partner)
                             {
-                                var player = "";
-                                if (userConfirm == false)
+                                if (response.Result.Content.ToLower() == "+unconfirm")
                                 {
-                                    player += ctx.Member.Username;
+                                    userConfirm = false;
+                                    userStatus = "Unconfirmed";
+                                    var embed2 = new DiscordEmbedBuilder();
+                                    embed2.Title = $"{ctx.Member.Username} unconfirmed.";
+                                    embed2.Color = DiscordColor.Red;
+                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
                                 }
-                                else if (partnerConfirm == false)
+                                else if (response.Result.Content.ToLower() == "g/i" || response.Result.Content.ToLower() == "g/inv" || response.Result.Content.ToLower() == "g/inventory")
                                 {
-                                    player += partner.Username;
+
+                                }
+                                else if (response.Result.Content.ToLower() == "+cancel")
+                                {
+                                    embed.ClearFields();
+                                    embed.Title = "Trade Cancelled";
+                                    embed.Description = $"{partner.Username} cancelled the trade.";
+                                    embed.Color = DiscordColor.Red;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                    break;
+                                }
+                                else if (partnerConfirm == true)
+                                {
+                                    var embed2 = new DiscordEmbedBuilder();
+                                    embed2.Title = $"{partner.Username} cannot modify their end.";
+                                    embed2.Color = DiscordColor.Red;
+                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                                else if (response.Result.Content.ToLower() == "+unconfirm")
+                                {
+                                    partnerConfirm = false;
+                                    partnerStatus = "Unconfirmed";
+                                    var embed2 = new DiscordEmbedBuilder();
+                                    embed2.Title = $"{partner.Username} unconfirmed.";
+                                    embed2.Color = DiscordColor.Red;
+                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                                else if (response.Result.Content.ToLower() == "+confirm")
+                                {
+                                    partnerConfirm = true;
+                                    if (userConfirm == true)
+                                    {
+                                        userStatus = "Confirmed";
+                                    }
+                                    if (partnerConfirm == true)
+                                    {
+                                        partnerStatus = "Confirmed";
+                                    }
+                                    embed.ClearFields();
+                                    foreach (var it in userItems)
+                                    {
+                                        display += $"{it.Name} x{it.Multiple}\n";
+                                    }
+                                    if (display == "")
+                                    {
+                                        display = "None";
+                                    }
+                                    embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
+                                    display = "";
+                                    foreach (var it in partnerItems)
+                                    {
+                                        display += $"{it.Name} x{it.Multiple}\n";
+                                    }
+                                    if (display == "")
+                                    {
+                                        display = "None";
+                                    }
+                                    embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    try
+                                    {
+                                        await response.Result.DeleteAsync();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                                else if (response.Result.Content.ToLower().Contains("+remove"))
+                                {
+                                    var amount = 1;
+                                    var itemName = name.ToLower();
+                                    var split = name.ToLower().Split(" x");
+                                    if (split.Count() > 1)
+                                    {
+                                        if (int.Parse(split[1]) > 0)
+                                        {
+                                            try
+                                            {
+                                                amount = int.Parse(split[1]);
+                                            }
+                                            catch
+                                            {
+                                                amount = 1;
+                                            }
+                                        }
+                                        itemName = split[0];
+                                    }
+                                    Item item = null;
+                                    foreach (var i in partnerItems)
+                                    {
+                                        if (i.Name.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                        else if (i.Subname.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                    }
+                                    if (item != null)
+                                    {
+                                        if (item.Multiple + 1 < amount)
+                                        {
+                                            var embed2 = new DiscordEmbedBuilder();
+                                            embed2.Title = "Not Enough Items";
+                                            embed2.AddField("Error", "You are attempting to remove too many items.");
+                                            embed2.Color = DiscordColor.Red;
+                                            await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        }
+                                        else
+                                        {
+                                            display = "";
+                                            if (item.Multiple >= 1 && item.Multiple - amount > 0)
+                                            {
+                                                item.Multiple -= amount;
+                                            }
+                                            else if (item.Multiple - amount == 0)
+                                            {
+                                                partnerItems.Remove(item);
+                                            }
+                                            else
+                                            {
+                                                var embed2 = new DiscordEmbedBuilder();
+                                                embed2.Title = "Not Enough Items";
+                                                embed2.AddField("Error", "You are attempting to remove too many items.");
+                                                embed2.Color = DiscordColor.Red;
+                                                await ctx.Channel.SendMessageAsync(embed: embed2);
+                                            }
+                                            embed.ClearFields();
+                                            foreach (var it in userItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
+                                            display = "";
+                                            foreach (var it in partnerItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                            bembed = embed;
+                                            await message.ModifyAsync(null, bembed);
+                                            try
+                                            {
+                                                await response.Result.DeleteAsync();
+                                            }
+                                            catch
+                                            {
+
+                                            }
+                                        }
+                                    }
+                                    else if (response.Result.Content.ToLower().Contains("+remove"))
+                                    {
+                                        var embed2 = new DiscordEmbedBuilder();
+                                        embed2.Title = "Item Not Found";
+                                        embed2.AddField("Error", "Item is not being used in trade.");
+                                        embed2.Color = DiscordColor.Red;
+                                        await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
+                                    }
+                                    else
+                                    {
+
+                                    }
                                 }
                                 else
                                 {
-                                    player += $"{ctx.Member.Username} & {partner.Username}";
+                                    var amount = 1;
+                                    var itemName = name.ToLower();
+                                    var split = name.ToLower().Split(" x");
+                                    if (split.Count() > 1)
+                                    {
+                                        if (int.Parse(split[1]) > 0)
+                                        {
+                                            try
+                                            {
+                                                amount = int.Parse(split[1]);
+                                            }
+                                            catch
+                                            {
+                                                amount = 1;
+                                            }
+                                        }
+                                        itemName = split[0];
+                                    }
+                                    Item item = null;
+                                    foreach (var i in partnerInv.Inventory)
+                                    {
+                                        if (i.Name.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                        else if (i.Subname.ToLower() == itemName.ToLower())
+                                        {
+                                            item = i;
+                                        }
+                                    }
+                                    if (item != null)
+                                    {
+                                        if (item.Multiple < amount)
+                                        {
+                                            var embed2 = new DiscordEmbedBuilder();
+                                            embed2.Title = "Not Enough Items";
+                                            embed2.AddField("Error", "You do not have enough of that item in your inventory.");
+                                            embed2.Color = DiscordColor.Red;
+                                            await ctx.Channel.SendMessageAsync(embed: embed2);
+                                        }
+                                        else
+                                        {
+                                            foreach (var i in Bot.Items.AllItems)
+                                            {
+                                                if (i.Name.ToLower() == itemName.ToLower())
+                                                {
+                                                    item = i;
+                                                }
+                                                else if (i.Subname.ToLower() == itemName.ToLower())
+                                                {
+                                                    item = i;
+                                                }
+                                            }
+                                            display = "";
+                                            var isInList = false;
+                                            Item copy = null;
+                                            foreach (var it in partnerItems)
+                                            {
+                                                if (it.ID == item.ID)
+                                                {
+                                                    copy = it;
+                                                    isInList = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (isInList == false)
+                                            {
+                                                item = Bot.Items.GetItem(item);
+                                                partnerItems.Add(item);
+                                                item.Multiple = amount;
+                                            }
+                                            else
+                                            {
+                                                var invalid = false;
+                                                foreach (var it in partnerItems)
+                                                {
+                                                    invalid = false;
+                                                    foreach (var invItem in partnerInv.Inventory)
+                                                    {
+                                                        if (it.ID == invItem.ID && it.Multiple + amount > invItem.Multiple)
+                                                        {
+                                                            invalid = true;
+                                                        }
+                                                    }
+                                                }
+                                                if (invalid != true)
+                                                {
+                                                    copy.Multiple += amount;
+                                                }
+                                                else
+                                                {
+                                                    var embed2 = new DiscordEmbedBuilder();
+                                                    embed2.Title = "Not Enough Items";
+                                                    embed2.AddField("Error", "You do not have enough of that item in your inventory.");
+                                                    embed2.Color = DiscordColor.Red;
+                                                    await ctx.Channel.SendMessageAsync(embed: embed2);
+                                                }
+                                            }
+                                            embed.ClearFields();
+                                            foreach (var it in userItems)
+                                            {
+                                                display += $"{it.Name} x{it.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{ctx.Member.Username} {userStatus}", $"{display}");
+                                            display = "";
+                                            foreach (var it2 in partnerItems)
+                                            {
+                                                display += $"{it2.Name} x{it2.Multiple}\n";
+                                            }
+                                            if (display == "")
+                                            {
+                                                display = "None";
+                                            }
+                                            embed.AddField($"{partner.Username} {partnerStatus}", $"{display}");
+                                            embed.WithFooter($"{ctx.Member.Id} & {partner.Id}\nIn order with name");
+                                            bembed = embed;
+                                            embed.Footer = null;
+                                            await message.ModifyAsync(null, bembed);
+                                        }
+                                        try
+                                        {
+                                            await response.Result.DeleteAsync();
+                                        }
+                                        catch
+                                        {
+
+                                        }
+                                    }
+                                    else if (response.Result.Content.ToLower().Contains("+add") && item == null)
+                                    {
+                                        var embed2 = new DiscordEmbedBuilder();
+                                        embed2.Title = $"{partner.Username} entered an invalid item or does not have the item.";
+                                        embed2.Color = DiscordColor.Red;
+                                        await ctx.Channel.SendMessageAsync(embed: embed2);
+                                    }
+                                    else
+                                    {
+
+                                    }
                                 }
-                                embed.Title = "Trade Failed";
-                                embed.Description = $"{partner.Username} did not agree to the trade.";
-                                embed.Color = DiscordColor.Red;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                                break;
+                            }
+                        }
+                        var finalTrade = bembed;
+                        if (userConfirm == true && partnerConfirm == true)
+                        {
+                            userConfirm = false;
+                            partnerConfirm = false;
+                            var status = $"Both parties must confirm the trade with +accept. Use +refuse to cancel. Once you accept you cannot use +refuse. \n{ctx.Member.Username} Agreement: {userConfirm}\n{partner.Username} Agreement: {partnerConfirm}";
+                            embed.ClearFields();
+                            embed.Title = "Confirmation";
+                            embed.Description = status;
+                            embed.Color = DiscordColor.Yellow;
+                            message = await ctx.Channel.SendMessageAsync(embed: embed);
+                            while (userConfirm == false || partnerConfirm == false)
+                            {
+                                response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member || x.Author == partner, TimeSpan.FromSeconds(60));
+                                if (response.TimedOut)
+                                {
+                                    var player = "";
+                                    if (userConfirm == false)
+                                    {
+                                        player += ctx.Member.Username;
+                                    }
+                                    else if (partnerConfirm == false)
+                                    {
+                                        player += partner.Username;
+                                    }
+                                    else
+                                    {
+                                        player += $"{ctx.Member.Username} & {partner.Username}";
+                                    }
+                                    embed.Title = "Trade Failed";
+                                    embed.Description = $"{partner.Username} did not respond to the trade.";
+                                    embed.Color = DiscordColor.Red;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    break;
+                                }
+                                else if (response.Result.Author == ctx.Member && response.Result.Content.ToLower() == "+accept" && userConfirm != true)
+                                {
+                                    userConfirm = true;
+                                    status = $"Both parties must confirm the trade with +accept.\n{ctx.Member.Username} Agreement: {userConfirm}\n{partner.Username} Agreement: {partnerConfirm}";
+                                    embed.Description = status;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                }
+                                else if (response.Result.Author == partner && response.Result.Content.ToLower() == "+accept" && partnerConfirm != true)
+                                {
+                                    partnerConfirm = true;
+                                    status = $"Both parties must confirm the trade with +accept.\n{ctx.Member.Username} Agreement: {userConfirm}\n{partner.Username} Agreement: {partnerConfirm}";
+                                    embed.Description = status;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                }
+                                else if (response.Result.Author == ctx.Member && response.Result.Content.ToLower() == "+refuse" && partnerConfirm != true)
+                                {
+                                    var player = "";
+                                    if (userConfirm == false)
+                                    {
+                                        player += ctx.Member.Username;
+                                    }
+                                    else if (partnerConfirm == false)
+                                    {
+                                        player += partner.Username;
+                                    }
+                                    else
+                                    {
+                                        player += $"{ctx.Member.Username} & {partner.Username}";
+                                    }
+                                    embed.Title = "Trade Failed";
+                                    embed.Description = $"{partner.Username} did not agree to the trade.";
+                                    embed.Color = DiscordColor.Red;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    break;
+                                }
+                                else if (response.Result.Author == partner && response.Result.Content.ToLower() == "+refuse" && partnerConfirm != true)
+                                {
+                                    var player = "";
+                                    if (userConfirm == false)
+                                    {
+                                        player += ctx.Member.Username;
+                                    }
+                                    else if (partnerConfirm == false)
+                                    {
+                                        player += partner.Username;
+                                    }
+                                    else
+                                    {
+                                        player += $"{ctx.Member.Username} & {partner.Username}";
+                                    }
+                                    embed.Title = "Trade Failed";
+                                    embed.Description = $"{partner.Username} did not agree to the trade.";
+                                    embed.Color = DiscordColor.Red;
+                                    bembed = embed;
+                                    await message.ModifyAsync(null, bembed);
+                                    break;
+                                }
+                                else
+                                { }
+                            }
+                            if (userConfirm == true && partnerConfirm == true)
+                            {
+                                await message.DeleteAsync();
+                                foreach (var tItem in partnerItems)
+                                {
+                                    var amount2 = tItem.Multiple;
+                                    var isInInventory = false;
+                                    Item copy2 = null;
+                                    foreach (var thing in user.Inventory)
+                                    {
+                                        if (thing.ID == tItem.ID)
+                                        {
+                                            copy2 = thing;
+                                            isInInventory = true;
+                                            break;
+                                        }
+                                    }
+                                    for (var loop = 0; loop < amount2; loop++)
+                                    {
+                                        if (isInInventory == false)
+                                        {
+                                            user.Inventory.Add(tItem);
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            copy2.Multiple++;
+                                        }
+                                    }
+                                    foreach (var thing in partnerInv.Inventory)
+                                    {
+                                        if (thing.ID == tItem.ID)
+                                        {
+                                            copy2 = thing;
+                                            break;
+                                        }
+                                    }
+                                    for (var loop = 0; loop < amount2; loop++)
+                                    {
+                                        if (copy2.Multiple > 1)
+                                        {
+                                            copy2.Multiple--;
+                                        }
+                                        else
+                                        {
+                                            partnerInv.Inventory.Remove(copy2);
+                                        }
+                                    }
+                                }
+                                Bot.PlayerDatabase.UpdatePlayer(partnerInv);
+                                Bot.PlayerDatabase.UpdatePlayer(user);
+                                foreach (var tItem in userItems)
+                                {
+                                    var amount2 = tItem.Multiple;
+                                    var isInInventory = false;
+                                    Item copy2 = null;
+                                    foreach (var thing in partnerInv.Inventory)
+                                    {
+                                        if (thing.ID == tItem.ID)
+                                        {
+                                            copy2 = thing;
+                                            isInInventory = true;
+                                            break;
+                                        }
+                                    }
+                                    for (var loop = 0; loop < amount2; loop++)
+                                    {
+                                        if (isInInventory == false)
+                                        {
+                                            partnerInv.Inventory.Add(tItem);
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            copy2.Multiple++;
+                                        }
+                                    }
+                                    foreach (var thing in user.Inventory)
+                                    {
+                                        if (thing.ID == tItem.ID)
+                                        {
+                                            copy2 = thing;
+                                            break;
+                                        }
+                                    }
+                                    for (var loop = 0; loop < amount2; loop++)
+                                    {
+                                        if (copy2.Multiple > 1)
+                                        {
+                                            copy2.Multiple--;
+                                        }
+                                        else
+                                        {
+                                            user.Inventory.Remove(copy2);
+                                        }
+                                    }
+                                }
+                                Bot.PlayerDatabase.UpdatePlayer(partnerInv);
+                                Bot.PlayerDatabase.UpdatePlayer(user);
+                                var embed3 = new DiscordEmbedBuilder();
+                                embed3.Title = $"Trade Successful";
+                                embed3.Color = DiscordColor.Green;
+                                var channel = Bot.HomeGuild.GetChannel(750195506130583652);
+                                await ctx.Channel.SendMessageAsync(embed: embed3);
+                                await channel.SendMessageAsync(embed: finalTrade);
                             }
                             else
                             { }
-                        }
-                        if (userConfirm == true && partnerConfirm == true)
-                        {
-                            await message.DeleteAsync();
-                            foreach (var tItem in partnerItems)
-                            {
-                                var amount2 = tItem.Multiple;
-                                var isInInventory = false;
-                                Item copy2 = null;
-                                foreach (var thing in user.Inventory)
-                                {
-                                    if (thing.ID == tItem.ID)
-                                    {
-                                        copy2 = thing;
-                                        isInInventory = true;
-                                        break;
-                                    }
-                                }
-                                for (var loop = 0; loop < amount2; loop++)
-                                {
-                                    if (isInInventory == false)
-                                    {
-                                        user.Inventory.Add(tItem);
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        copy2.Multiple++;
-                                    }
-                                }
-                                foreach (var thing in partnerInv.Inventory)
-                                {
-                                    if (thing.ID == tItem.ID)
-                                    {
-                                        copy2 = thing;
-                                        break;
-                                    }
-                                }
-                                for (var loop = 0; loop < amount2; loop++)
-                                {
-                                    if (copy2.Multiple > 1)
-                                    {
-                                        copy2.Multiple--;
-                                    }
-                                    else
-                                    {
-                                        partnerInv.Inventory.Remove(copy2);
-                                    }
-                                }
-                            }
-                            Bot.PlayerDatabase.UpdatePlayer(partnerInv);
-                            Bot.PlayerDatabase.UpdatePlayer(user);
-                            foreach (var tItem in userItems)
-                            {
-                                var amount2 = tItem.Multiple;
-                                var isInInventory = false;
-                                Item copy2 = null;
-                                foreach (var thing in partnerInv.Inventory)
-                                {
-                                    if (thing.ID == tItem.ID)
-                                    {
-                                        copy2 = thing;
-                                        isInInventory = true;
-                                        break;
-                                    }
-                                }
-                                for (var loop = 0; loop < amount2; loop++)
-                                {
-                                    if (isInInventory == false)
-                                    {
-                                        partnerInv.Inventory.Add(tItem);
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        copy2.Multiple++;
-                                    }
-                                }
-                                foreach (var thing in user.Inventory)
-                                {
-                                    if (thing.ID == tItem.ID)
-                                    {
-                                        copy2 = thing;
-                                        break;
-                                    }
-                                }
-                                for (var loop = 0; loop < amount2; loop++)
-                                {
-                                    if (copy2.Multiple > 1)
-                                    {
-                                        copy2.Multiple--;
-                                    }
-                                    else
-                                    {
-                                        user.Inventory.Remove(copy2);
-                                    }
-                                }
-                            }
-                            Bot.PlayerDatabase.UpdatePlayer(partnerInv);
-                            Bot.PlayerDatabase.UpdatePlayer(user);
-                            var embed3 = new DiscordEmbedBuilder();
-                            embed3.Title = $"Trade Successful";
-                            embed3.Color = DiscordColor.Green;
-                            var channel = Bot.HomeGuild.GetChannel(750195506130583652);
-                            await ctx.Channel.SendMessageAsync(embed: embed3);
-                            await channel.SendMessageAsync(embed: finalTrade);
                         }
                         else
                         { }
                     }
                     else
-                    { }
-                }
-                else
-                {
-                    goto repeat;
+                    {
+                        goto repeat;
+                    }
                 }
             }
         }
@@ -3147,38 +2942,17 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             Player user = null;
-            long id = 0;
             if (playerName != null)
-            {
-                try
-                {
-                    id = Convert.ToInt64(playerName);
-                    user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
-                }
-                catch
-                {
-                    user = Bot.PlayerDatabase.GetPlayerByName(playerName);
-                    if (user != null)
-                        id = user.ID;
-                }
-            }
+                user = GeneralFunctions.GetRequestePlayer(playerName);
             else
-            {
-                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.User.Id));
-                id = (long)ctx.User.Id;
-            }
-            if (user == null && ctx.Member.IsBot != true && (long)ctx.Member.Id == id)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (user == null && id != Convert.ToInt64(ctx.Member.Id))
+                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
+            if (playerName != null && user == null)
             {
                 embed.Title = "No user can be found (Names are case sensitive)";
                 embed.Color = DiscordColor.Red;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            else if (ctx.Member.IsBot != true)
+            else if (user != null || GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 if(playerName == null)
                 {
@@ -3230,38 +3004,17 @@ namespace GameTime.Commands
         {
             var embed = new DiscordEmbedBuilder();
             Player user = null;
-            long id = 0;
             if (playerName != null)
-            {
-                try
-                {
-                    id = Convert.ToInt64(playerName);
-                    user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(id));
-                }
-                catch
-                {
-                    user = Bot.PlayerDatabase.GetPlayerByName(playerName);
-                    if (user != null)
-                        id = user.ID;
-                }
-            }
+                user = GeneralFunctions.GetRequestePlayer(playerName);
             else
-            {
-                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.User.Id));
-                id = (long)ctx.User.Id;
-            }
-            if (user == null && ctx.Member.IsBot != true && (long)ctx.Member.Id == id)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else if (user == null && id != Convert.ToInt64(ctx.Member.Id))
+                user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
+            if (playerName != null && user == null)
             {
                 embed.Title = "No user can be found (Names are case sensitive)";
                 embed.Color = DiscordColor.Red;
                 await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            else if (ctx.Member.IsBot != true)
+            else if (user != null || GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 if (playerName == null)
                 {
@@ -3301,12 +3054,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var interactivity = ctx.Client.GetInteractivity();
             var user = Bot.PlayerDatabase.GetPlayerByID((long)ctx.Member.Id);
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else
+            if (GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 embed.Title = "Choose A Color";
@@ -3340,12 +3088,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var interactivity = ctx.Client.GetInteractivity();
             var user = Bot.PlayerDatabase.GetPlayerByID((long)ctx.Member.Id);
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else
+            if (GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 embed.Title = $"{user.Name}'s Mails";
@@ -3369,12 +3112,7 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var interactivity = ctx.Client.GetInteractivity();
             var user = Bot.PlayerDatabase.GetPlayerByID((long)ctx.Member.Id);
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else
+            if (GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 GeneralFunctions.UpdatePlayerDisplayInfo(ctx, user);
                 user.Mail.Clear();
