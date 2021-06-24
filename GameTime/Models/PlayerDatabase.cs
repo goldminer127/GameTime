@@ -63,19 +63,19 @@ namespace GameTime.Models
             }
             return null;
         }
-        public DiscordEmbedBuilder NewPlayer(CommandContext ctx, DiscordEmbedBuilder embed, ulong id)
+        public DiscordEmbedBuilder NewPlayer(DiscordUser user, DiscordEmbedBuilder embed)
         {
-            if(id != 277275957147074560)
+            if(user.Id != 277275957147074560)
             {
                 embed.Title = "New User Detected";
                 embed.Description = "Here is a flare to start you off. Use g/inventory again to view your inventory. Use g/help to view all the commands. ";
-                Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(id), Name = ctx.Member.Username, Image = ctx.Member.AvatarUrl });
+                Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(user.Id), Name = user.Username, Image = user.AvatarUrl });
             }
             else
             {
                 embed.Title = "Greetings Goldminer127";
                 embed.Description = "Admin permissions granted.";
-                Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(id), Name = ctx.Member.Username, Image = ctx.Member.AvatarUrl, AuthroizedAdmin = true, AuthroizedMod = true });
+                Bot.PlayerDatabase.AddPlayer(new Player() { ID = Convert.ToInt64(user.Id), Name = user.Username, Image = user.AvatarUrl, AuthroizedAdmin = true, AuthroizedMod = true });
             }
             return embed;
         }
