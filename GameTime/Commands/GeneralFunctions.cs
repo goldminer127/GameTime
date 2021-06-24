@@ -97,7 +97,7 @@ namespace GameTime.Commands
                 ctx.Channel.SendMessageAsync(embed: embed);
                 return false;
             }
-            else if (player.IsBanned == true || isNotCoreFunction == true)
+            else if (player.IsBanned == true || isNotCoreFunction == false)
             {
                 embed.Title = "You Are Banned";
                 embed.Description += " You are currently banned form using the main feature of this bot.";
