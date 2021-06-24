@@ -20,13 +20,7 @@ namespace GameTime.Commands
         {
             embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
-            if (user == null)
-            {
-                embed = Bot.PlayerDatabase.NewPlayer(ctx, embed, ctx.Member.Id);
-                embed.Color = DiscordColor.Blurple;
-                await ctx.Channel.SendMessageAsync(embed: embed);
-            }
-            else
+            if (GeneralFunctions.ValidatePlayer(ctx, user, true))
             {
                 if (!user.InMinigame)
                 {
