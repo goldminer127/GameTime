@@ -8,15 +8,15 @@ namespace GameTime.Commands
 {
     class GeneralFunctions
     {
-        public static void AddToInventory(Player user, Item item, int amount)
+        public static void AddToInventory(Player user, Item item, int amount = 1)
         {
             var isInInventory = false;
             Item copy = null;
-            foreach (var thing in user.Inventory)
+            foreach (var it in user.Inventory)
             {
-                if (thing.ID == item.ID)
+                if (it.ID == item.ID)
                 {
-                    copy = thing;
+                    copy = it;
                     isInInventory = true;
                     break;
                 }
@@ -32,15 +32,9 @@ namespace GameTime.Commands
                 copy.Multiple += amount;
             }
         }
-        public static void UpdatePlayerDisplayInfo(CommandContext ctx, Player user)
-        {
-            user.Name = ctx.Member.Username;
-            user.Image = ctx.Member.AvatarUrl;
-            Bot.PlayerDatabase.UpdatePlayer(user);
-        }
         public static void RemoveFromInventory(Player user, Item item, int amount)
         {
-            if (item.Multiple - amount > 1)
+            if (item.Multiple - amount >= 1)
             {
                 item.Multiple -= amount;
             }
@@ -48,6 +42,28 @@ namespace GameTime.Commands
             {
                 user.Inventory.Remove(item);
             }
+        }
+        //Searches for specified item in inventory. Returns null if it does not exist
+        public static Item SearchItemInInventory(string itemName, Player user)
+        {
+            foreach (var i in user.Inventory)
+            {
+                if (i.Name.ToLower() == itemName.ToLower())
+                {
+                    return i;
+                }
+                else if (i.Subname.ToLower() == itemName.ToLower())
+                {
+                    return i;
+                }
+            }
+            return null;
+        }
+        public static void UpdatePlayerDisplayInfo(CommandContext ctx, Player user)
+        {
+            user.Name = ctx.Member.Username;
+            user.Image = ctx.Member.AvatarUrl;
+            Bot.PlayerDatabase.UpdatePlayer(user);
         }
         public static async Task DelayMessageDeletion(DiscordMessage message, int length = 1000)
         {
@@ -97,7 +113,7 @@ namespace GameTime.Commands
                 ctx.Channel.SendMessageAsync(embed: embed);
                 return false;
             }
-            else if (player.IsBanned == true || isNotCoreFunction == true)
+            else if (player.IsBanned == true && isNotCoreFunction == false)
             {
                 embed.Title = "You Are Banned";
                 embed.Description += " You are currently banned form using the main feature of this bot.";
@@ -108,6 +124,7 @@ namespace GameTime.Commands
             //Will always return true if discord user is not a bot
             return !(ctx.Member.IsBot);
         }
+        //Get player from database via name or id
         public static Player GetRequestePlayer(string player)
         {
             try
@@ -121,21 +138,47 @@ namespace GameTime.Commands
                 return user;
             }
         }
+        //Assigns rarity colors to embeds
         public static DiscordColor RarityColor(Item item)
         {
-            switch (item.Rarity)
+            return item.Rarity switch
             {
-                case Rarity.Common:
-                    return DiscordColor.Gray;
-                case Rarity.Uncommon:
-                    return DiscordColor.DarkGreen;
-                case Rarity.Rare:
-                    return DiscordColor.Blue;
-                case Rarity.Epic:
-                    return DiscordColor.Gold;
-                default: //Unique
-                    return DiscordColor.Orange;
+                Rarity.Common => DiscordColor.Gray,
+                Rarity.Uncommon => DiscordColor.DarkGreen,
+                Rarity.Rare => DiscordColor.Blue,
+                Rarity.Epic => DiscordColor.Gold,
+                _ => DiscordColor.Orange
+            };
+        }
+        //Returns item amounts from commands. Limits at 100
+        //name looks like ([item name] x[num])
+        public static byte GetItemAmount(string itemName)
+        {
+            var split = itemName.ToLower().Split(" x");
+            if (split.Length > 1 && byte.Parse(split[1]) > 0)
+            {
+                try
+                {
+                    if (byte.Parse(split[1]) <= 100)
+                        return byte.Parse(split[1]);
+                    else
+                        return 101;
+                }
+                catch
+                {
+                    return 1;
+                }
             }
+            else
+            {
+                return 1;
+            }
+        }
+        //Returns item name from commands
+        //name looks like ([item name] x[num])
+        public static string GetItemName(string itemName)
+        {
+            return itemName.ToLower().Split(" x")[0];
         }
     }
 }
