@@ -134,23 +134,8 @@ namespace GameTime.Commands
                 }
                 else
                 {
-                    var amount = 1;
-                    var split = itemName.ToLower().Split(" x");
-                    if (split.Count() > 1)
-                    {
-                        if (int.Parse(split[1]) > 0)
-                        {
-                            try
-                            {
-                                amount = int.Parse(split[1]);
-                            }
-                            catch
-                            {
-                                amount = 1;
-                            }
-                        }
-                        itemName = split[0];
-                    }
+                    var amount = GeneralFunctions.GetItemAmount(itemName);
+                    itemName = GeneralFunctions.GetItemName(itemName);
                     if (amount > 100)
                     {
                         embed.Title = "Too many Items";
@@ -159,18 +144,7 @@ namespace GameTime.Commands
                     }
                     else
                     {
-                        Item item = null;
-                        foreach (var i in user.Inventory)
-                        {
-                            if (i.Name.ToLower() == itemName.ToLower())
-                            {
-                                item = i;
-                            }
-                            else if (i.Subname.ToLower() == itemName.ToLower())
-                            {
-                                item = i;
-                            }
-                        }
+                        var item = GeneralFunctions.SearchItemInInventory(itemName, user);
                         if (item == null)
                         {
                             embed.Title = "Error";
@@ -190,6 +164,7 @@ namespace GameTime.Commands
                                 var value = 0m;
                                 var totalitems = 0;
                                 List<Item> items = new List<Item>();
+                                //Add unboxed item into items. Copies increases item.multiple
                                 for (var i = 0; i < amount; i++)
                                 {
                                     var citem = Crate.OpenCrate(crate.Rarity);
@@ -214,66 +189,19 @@ namespace GameTime.Commands
                                         }
                                     }
                                 }
-                                if(crate.Multiple > 1)
-                                {
-                                    embed.Color = crate.Rarity switch
-                                    {
-                                        Rarity.Common => DiscordColor.Gray,
-                                        Rarity.Uncommon => DiscordColor.DarkGreen,
-                                        Rarity.Rare => DiscordColor.Blue,
-                                        Rarity.Epic => DiscordColor.Gold,
-                                        _ => DiscordColor.Orange
-                                    };
-                                }
-                                if (crate.Multiple - amount >= 1)
-                                {
-                                    crate.Multiple -= amount;
-                                }
-                                else
-                                {
-                                    user.Inventory.Remove(crate);
-                                }
+                                embed.Color = GeneralFunctions.RarityColor(item);
+                                GeneralFunctions.RemoveFromInventory(user, crate, amount);
                                 foreach(Item it in items)
                                 {
-                                    var isItemInInventory = false;
-                                    Item pitem = null;
-                                    foreach (var thing in user.Inventory)
-                                    {
-                                        if (thing.ID == it.ID)
-                                        {
-                                            isItemInInventory = true;
-                                            pitem = thing;
-                                            break;
-                                        }
-                                    }
-                                    if (isItemInInventory == false)
-                                    {
-                                        user.Inventory.Add(it);
-                                        value += it.Value * it.Multiple;
-                                    }
-                                    else
-                                    {
-                                        pitem.Multiple += it.Multiple;
-                                        value += it.Value * it.Multiple;
-                                    }
-                                    if(crate.Multiple == 1)
-                                    {
-                                        embed.Color = it.Rarity switch
-                                        {
-                                            Rarity.Common => DiscordColor.Gray,
-                                            Rarity.Uncommon => DiscordColor.DarkGreen,
-                                            Rarity.Rare => DiscordColor.Blue,
-                                            Rarity.Epic => DiscordColor.Gold,
-                                            _ => DiscordColor.Orange
-                                        };
-                                    }
+                                    GeneralFunctions.AddToInventory(user, it, it.Multiple);
+                                    value += it.Value * it.Multiple;
                                     obtained += $"[{it.Rarity}] - {it.Name} x{it.Multiple}\n";
                                     totalitems += it.Multiple;
                                 }
                                 embed.Title = $"{user.Name} got:";
-                                Bot.PlayerDatabase.UpdatePlayer(user);
                                 embed.WithFooter($"Total value: ${value.ToString("###,###,###,###,###,##0.#0")}\nTotal items {totalitems}");
                                 embed.Description = $"{obtained}";
+                                Bot.PlayerDatabase.UpdatePlayer(user);
                             }
                             else if (item is Weapon weapon)
                             {
@@ -1461,8 +1389,8 @@ namespace GameTime.Commands
                     embed.Color = DiscordColor.Red;
                     Bot.PlayerDatabase.UpdatePlayer(user);
                 }
+                await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            await ctx.Channel.SendMessageAsync(embed: embed);
         }
 
         [Command("daily"), Aliases("d", "day")]
@@ -1477,25 +1405,7 @@ namespace GameTime.Commands
                 if (DateTime.Now - user.DailyCooldownStart >= user.DailyCooldown)
                 {
                     var item = Crate.GetDaily();
-                    var isInInventory = false;
-                    Item copy = null;
-                    foreach (var thing in user.Inventory)
-                    {
-                        if (thing.ID == item.ID)
-                        {
-                            copy = thing;
-                            isInInventory = true;
-                            break;
-                        }
-                    }
-                    if (isInInventory == false)
-                    {
-                        user.Inventory.Add(item);
-                    }
-                    else
-                    {
-                        copy.Multiple++;
-                    }
+                    GeneralFunctions.AddToInventory(user, item);
                     user.DailyCooldown = TimeSpan.FromHours(24);
                     user.DailyCooldownStart = DateTime.Now;
                     user.DailyCooldownEnd = user.DailyCooldownStart.Add(user.DailyCooldown);
@@ -1512,8 +1422,8 @@ namespace GameTime.Commands
                     embed.Color = DiscordColor.Red;
                     Bot.PlayerDatabase.UpdatePlayer(user);
                 }
+                await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            await ctx.Channel.SendMessageAsync(embed: embed);
         }
 
         [Command("optin"), Aliases("oi", "opt")]
@@ -1704,25 +1614,7 @@ namespace GameTime.Commands
                 if (DateTime.Now - user.WeeklyCooldownStart >= user.WeeklyCooldown)
                 {
                     var item = Crate.GetWeekly();
-                    var isInInventory = false;
-                    Item copy = null;
-                    foreach (var thing in user.Inventory)
-                    {
-                        if (thing.ID == item.ID)
-                        {
-                            copy = thing;
-                            isInInventory = true;
-                            break;
-                        }
-                    }
-                    if (isInInventory == false)
-                    {
-                        user.Inventory.Add(item);
-                    }
-                    else
-                    {
-                        copy.Multiple++;
-                    }
+                    GeneralFunctions.AddToInventory(user, item);
                     user.WeeklyCooldown = TimeSpan.FromDays(7);
                     user.WeeklyCooldownStart = DateTime.Now;
                     user.WeeklyCooldownEnd = user.WeeklyCooldownStart.Add(user.WeeklyCooldown);
@@ -1739,8 +1631,8 @@ namespace GameTime.Commands
                     embed.Color = DiscordColor.Red;
                     Bot.PlayerDatabase.UpdatePlayer(user);
                 }
+                await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            await ctx.Channel.SendMessageAsync(embed: embed);
         }
 
         [Command("monthly"), Aliases("m", "month")]
@@ -1755,25 +1647,7 @@ namespace GameTime.Commands
                 if (DateTime.Now - user.MonthlyCooldownStart >= user.MonthlyCooldown)
                 {
                     var item = Crate.GetMonthly();
-                    var isInInventory = false;
-                    Item copy = null;
-                    foreach (var thing in user.Inventory)
-                    {
-                        if (thing.ID == item.ID)
-                        {
-                            copy = thing;
-                            isInInventory = true;
-                            break;
-                        }
-                    }
-                    if (isInInventory == false)
-                    {
-                        user.Inventory.Add(item);
-                    }
-                    else
-                    {
-                        copy.Multiple += item.Multiple;
-                    }
+                    GeneralFunctions.AddToInventory(user, item);
                     user.MonthlyCooldown = TimeSpan.FromDays(30);
                     user.MonthlyCooldownStart = DateTime.Now;
                     user.MonthlyCooldownEnd = user.MonthlyCooldownStart.Add(user.MonthlyCooldown);
@@ -1790,8 +1664,8 @@ namespace GameTime.Commands
                     embed.Color = DiscordColor.Red;
                     Bot.PlayerDatabase.UpdatePlayer(user);
                 }
+                await ctx.Channel.SendMessageAsync(embed: embed);
             }
-            await ctx.Channel.SendMessageAsync(embed: embed);
         }
 
         [Command("cooldowns"), Aliases("c", "cd", "cooldown", "cds")]
