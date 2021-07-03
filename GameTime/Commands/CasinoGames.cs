@@ -137,6 +137,7 @@ namespace GameTime.Commands
                                         await messageAG.Result.DeleteAsync();
                                         await ctx.Channel.SendMessageAsync($"Casino exited");
                                         exit = true;
+                                        playAgain = false;
                                     }
                                     else if (responseAG.Result.Content.ToLower() == "yes")
                                     {
@@ -769,158 +770,24 @@ namespace GameTime.Commands
             var didSplit = false;
             long bet2 = 0;
             Card[] deck = new Card[52];
-            var deckIndex = -1;
             for(int num = 1; num < 14; num++)
             {
-                var loop = 0;
-                switch (num)
+                deck = num switch
                 {
-                    case 1:
-                        while(loop != 4)
-                        {
-                            while(deckIndex == -1 || !(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 11, MinValue = 1, Symbol = "A" };
-                        }
-                        break;
-                    case 2:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 2, Symbol = "2" };
-                        }
-                        break;
-                    case 3:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 3, Symbol = "3" };
-                        }
-                        break;
-                    case 4:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 4, Symbol = "4" };
-                        }
-                        break;
-                    case 5:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 5, Symbol = "5" };
-                        }
-                        break;
-                    case 6:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 6, Symbol = "6" };
-                        }
-                        break;
-                    case 7:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 7, Symbol = "7" };
-                        }
-                        break;
-                    case 8:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 8, Symbol = "8" };
-                        }
-                        break;
-                    case 9:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 9, Symbol = "9" };
-                        }
-                        break;
-                    case 10:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 10, Symbol = "10" };
-                        }
-                        break;
-                    case 11:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 10, Symbol = "J" };
-                        }
-                        break;
-                    case 12:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 10, Symbol = "Q" };
-                        }
-                        break;
-                    case 13:
-                        while (loop != 4)
-                        {
-                            while (!(deck[deckIndex] == null))
-                            {
-                                deckIndex = new Random().Next(0, 52);
-                            }
-                            loop++;
-                            deck[deckIndex] = new Card { MaxValue = 10, Symbol = "K" };
-                        }
-                        break;
-                    default:
-                        break;
-                }
+                    1 => ShuffleDeck(deck, "A", 11, 1),
+                    2 => ShuffleDeck(deck, "2", 2),
+                    3 => ShuffleDeck(deck, "3", 3),
+                    4 => ShuffleDeck(deck, "4", 4),
+                    5 => ShuffleDeck(deck, "5", 5),
+                    6 => ShuffleDeck(deck, "6", 6),
+                    7 => ShuffleDeck(deck, "7", 7),
+                    8 => ShuffleDeck(deck, "8", 8),
+                    9 => ShuffleDeck(deck, "9", 9),
+                    10 => ShuffleDeck(deck, "10", 10),
+                    11 => ShuffleDeck(deck, "J", 10),
+                    12 => ShuffleDeck(deck, "Q", 10),
+                    13 => ShuffleDeck(deck, "K", 10),
+                };
             }
             var dealerCards = new List<Card>();
             var playerCards = new List<Card>();
@@ -1003,10 +870,11 @@ namespace GameTime.Commands
                     dealer = "";
                     if (dealerValue < 17)
                     {
-                        for (int i = 0; dealerValue < 17; draw++)
+                        while (dealerValue < 17)
                         {
                             dealerCards.Add(deck[draw]);
                             dealerValue = CountCards(dealerCards);
+                            draw++;
                         }
                     }
                     foreach (Card c in dealerCards)
@@ -1044,10 +912,11 @@ namespace GameTime.Commands
                     dealer = "";
                     if (dealerValue < 17)
                     {
-                        for (int i = 0; dealerValue < 17; draw++)
+                        while (dealerValue < 17)
                         {
                             dealerCards.Add(deck[draw]);
                             dealerValue = CountCards(dealerCards);
+                            draw++;
                         }
                     }
                     foreach (Card c in dealerCards)
@@ -1245,10 +1114,11 @@ namespace GameTime.Commands
                         dealer = "";
                         if (dealerValue < 17)
                         {
-                            for (int i = 0; dealerValue < 17; draw++)
+                            while (dealerValue < 17)
                             {
                                 dealerCards.Add(deck[draw]);
                                 dealerValue = CountCards(dealerCards);
+                                draw++;
                             }
                         }
                         foreach (Card c in dealerCards)
@@ -1341,12 +1211,12 @@ namespace GameTime.Commands
                     if (isDouble)
                     {
                         user.Credits += 2 * (bet * 2);
-                        outcome -= 2 * (bet * 2);
+                        outcome += 2 * (bet * 2);
                     }
                     else
                     {
                         user.Credits += bet * 2;
-                        outcome -= bet * 2;
+                        outcome += bet * 2;
                     }
                 }
                 else if (playerValue > dealerValue)
@@ -1590,9 +1460,9 @@ namespace GameTime.Commands
             Bot.PlayerDatabase.UpdatePlayer(user);
             embed = new DiscordEmbedBuilder();
         }
-        private int CountCards(List<Card> cards)
+        private byte CountCards(List<Card> cards)
         {
-            var totalValue = 0;
+            byte totalValue = 0;
             var hasAce = false;
             var totalAces = 0;
             foreach(Card c in cards)
@@ -1700,6 +1570,19 @@ namespace GameTime.Commands
             }
             Bot.PlayerDatabase.UpdatePlayer(user);
             return display;
+        }
+        private Card[] ShuffleDeck(Card[] deck, string symbole, byte max, byte min = 0)
+        {
+            var deckIndex = -1;
+            for (int l = 0; l < 4; l++)
+            {
+                while (deckIndex == -1 || !(deck[deckIndex] == null))
+                {
+                    deckIndex = new Random().Next(0, 52);
+                }
+                deck[deckIndex] = new Card { MaxValue = max, MinValue = (min != 0) ? min : max, Symbol = symbole };
+            }
+            return deck;
         }
     }
 }
