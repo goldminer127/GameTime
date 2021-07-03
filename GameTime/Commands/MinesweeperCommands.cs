@@ -138,649 +138,24 @@ namespace GameTime.Commands
                         //Finished response processing
                         foreach (string move in moves)
                         {
-                            if (move.Contains("a"))
+                            board = move[0] switch
                             {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[0, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[0, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[0, yPosition].IsRevealed)
-                                            Chording(board, 0, yPosition);
-                                        else
-                                            board.Board[0, yPosition].IsRevealed = true;
-                                        if (board.Board[0, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 0, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            else if (move.Contains("b"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[1, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[1, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[1, yPosition].IsRevealed)
-                                            Chording(board, 1, yPosition);
-                                        else
-                                            board.Board[1, yPosition].IsRevealed = true;
-                                        if (board.Board[1, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 1, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("c"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[2, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[2, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[2, yPosition].IsRevealed)
-                                            Chording(board, 2, yPosition);
-                                        else
-                                            board.Board[2, yPosition].IsRevealed = true;
-                                        if (board.Board[2, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 2, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("d"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[3, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[3, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[3, yPosition].IsRevealed)
-                                            Chording(board, 3, yPosition);
-                                        else
-                                            board.Board[3, yPosition].IsRevealed = true;
-                                        if (board.Board[3, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 3, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("e"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[4, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[4, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[4, yPosition].IsRevealed)
-                                            Chording(board, 4, yPosition);
-                                        else
-                                            board.Board[4, yPosition].IsRevealed = true;
-                                        if (board.Board[4, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 4, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("f"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[5, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[5, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[5, yPosition].IsRevealed)
-                                            Chording(board, 5, yPosition);
-                                        else
-                                            board.Board[5, yPosition].IsRevealed = true;
-                                        if (board.Board[5, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 5, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("g"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[6, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[6, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[6, yPosition].IsRevealed)
-                                            Chording(board, 6, yPosition);
-                                        else
-                                            board.Board[6, yPosition].IsRevealed = true;
-                                        if (board.Board[6, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 6, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("h"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[7, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[7, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[7, yPosition].IsRevealed)
-                                            Chording(board, 7, yPosition);
-                                        else
-                                            board.Board[7, yPosition].IsRevealed = true;
-                                        if (board.Board[7, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 7, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("i"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[8, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[8, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[8, yPosition].IsRevealed)
-                                            Chording(board, 8, yPosition);
-                                        else
-                                            board.Board[8, yPosition].IsRevealed = true;
-                                        if (board.Board[8, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 8, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
-                            if (move.Contains("j"))
-                            {
-                                if (rawInput.Contains("unflag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[9, yPosition].Flagged = false;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else if (rawInput.Contains("flag"))
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        board.Board[9, yPosition].Flagged = true;
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    var characters = move.ToCharArray();
-                                    var yPosition = 0;
-                                    try
-                                    {
-                                        totalMoves++;
-                                        yPosition = Int32.Parse(move[1].ToString());
-                                        if (board.Board[9, yPosition].IsRevealed)
-                                            Chording(board, 9, yPosition);
-                                        else
-                                            board.Board[9, yPosition].IsRevealed = true;
-                                        if (board.Board[9, yPosition].TotalMines == 0)
-                                        {
-                                            board = RevealEmpty(board, 9, yPosition);
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        var msg = await ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
-                                        await Task.Delay(5000);
-                                        await msg.DeleteAsync();
-                                        break;
-                                    }
-                                }
-                            }
+                                'a' => PerformMove(board, ctx, rawInput, move, 0),
+                                'b' => PerformMove(board, ctx, rawInput, move, 1),
+                                'c' => PerformMove(board, ctx, rawInput, move, 2),
+                                'd' => PerformMove(board, ctx, rawInput, move, 3),
+                                'e' => PerformMove(board, ctx, rawInput, move, 4),
+                                'f' => PerformMove(board, ctx, rawInput, move, 5),
+                                'g' => PerformMove(board, ctx, rawInput, move, 6),
+                                'h' => PerformMove(board, ctx, rawInput, move, 7),
+                                'i' => PerformMove(board, ctx, rawInput, move, 8),
+                                'j' => PerformMove(board, ctx, rawInput, move, 9),
+                                _ => board
+                            };
                         }
                         display = MakeDisplay(board);
                     }
+                    //Decides if puzzle is finished or failed
                     puzzleFinished = true;
                     for (int row = 0; row < board.Board.GetLength(0); row++)
                     {
@@ -790,15 +165,16 @@ namespace GameTime.Commands
                             {
                                 puzzleFinished = true;
                                 failed = true;
-                                goto end;
+                                break;
                             }
                             else if (!board.Board[row, col].IsRevealed && !board.Board[row, col].IsMine)
                             {
                                 puzzleFinished = false;
                             }
                         }
+                        if (failed)
+                            break;
                     }
-                end:
                     embed.Description = $"```\n{display}\n```";
                     BuiltEmbed = embed.Build();
                     message = await message.ModifyAsync(embed: BuiltEmbed);
@@ -979,348 +355,145 @@ namespace GameTime.Commands
         }
         private MinesweeperBoard RevealEmpty(MinesweeperBoard board, int x, int y)
         {
-            try
+            for(int row = -1; row < 2; row++)
             {
-                board.Board[x - 1, y - 1].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x - 1, y].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x - 1, y + 1].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x, y + 1].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x + 1, y - 1].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x + 1, y].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x + 1, y + 1].IsRevealed = true;
-            }
-            catch { }
-            try
-            {
-                board.Board[x, y - 1].IsRevealed = true;
-            }
-            catch { }
-            try 
-            {
-                if ((board.Board[x - 1, y - 1].TotalMines == 0) && !ScanAdjacent(board, x - 1, y - 1))
+                for(int col = -1; col < 2; col++)
                 {
-                    board = RevealEmpty(board, x - 1, y - 1);
+                    try
+                    {
+                        board.Board[x + row, y + col].IsRevealed = true;
+                    }
+                    catch { }
                 }
             }
-            catch { }
-            try
+            for (int row = -1; row < 2; row++)
             {
-                if (board.Board[x - 1, y].TotalMines == 0 && !ScanAdjacent(board, x - 1, y))
+                for (int col = -1; col < 2; col++)
                 {
-                    board = RevealEmpty(board, x - 1, y);
+                    try
+                    {
+                        if ((board.Board[x + row, y + col].TotalMines == 0) && !ScanAdjacent(board, x + row, y + col))
+                        {
+                            board = RevealEmpty(board, x + row, y + col);
+                        }
+                    }
+                    catch { }
                 }
             }
-            catch { }
-            try 
-            {
-                if (board.Board[x - 1, y + 1].TotalMines == 0 && !ScanAdjacent(board, x - 1, y + 1))
-                {
-                    board = RevealEmpty(board, x - 1, y + 1);
-                }
-            }
-            catch { }
-            try 
-            {
-                if (board.Board[x, y + 1].TotalMines == 0 && !ScanAdjacent(board, x, y + 1))
-                {
-                    board = RevealEmpty(board, x, y + 1);
-                }
-            }
-            catch { }
-            try 
-            {
-                if (board.Board[x + 1, y - 1].TotalMines == 0 && !ScanAdjacent(board, x + 1, y - 1))
-                {
-                    board = RevealEmpty(board, x + 1, y - 1);
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y].TotalMines == 0 && !ScanAdjacent(board, x + 1, y))
-                {
-                    board = RevealEmpty(board, x + 1, y);
-                }
-            }
-            catch { }
-            try 
-            {
-                if (board.Board[x + 1, y + 1].TotalMines == 0 && !ScanAdjacent(board, x + 1, y + 1))
-                {
-                    board = RevealEmpty(board, x + 1, y + 1);
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x, y - 1].TotalMines == 0 && !ScanAdjacent(board, x, y - 1))
-                {
-                    board = RevealEmpty(board, x, y - 1);
-                }
-            }
-            catch { }
             return board;
         }
         private MinesweeperBoard Chording(MinesweeperBoard board, int x, int y)
         {
             var totalFlags = 0;
             var totalCorrectFlagged = 0;
-            try
+            for (int row = -1; row < 2; row++)
             {
-                if (board.Board[x - 1, y - 1].Flagged && board.Board[x - 1, y - 1].IsMine)
+                for (int col = -1; col < 2; col++)
                 {
-                    totalCorrectFlagged++;
+                    try
+                    {
+                        if (board.Board[x + row, y + col].Flagged && board.Board[x + row, y + col].IsMine)
+                        {
+                            totalCorrectFlagged++;
+                        }
+                        if (board.Board[x + row, y + col].Flagged)
+                            totalFlags++;
+                    }
+                    catch { }
                 }
-                if (board.Board[x - 1, y - 1].Flagged)
-                    totalFlags++;
             }
-            catch { }
-            try
-            {
-                if (board.Board[x - 1, y].Flagged && board.Board[x - 1, y].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x - 1, y].Flagged)
-                    totalFlags++;
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x - 1, y + 1].Flagged && board.Board[x - 1, y + 1].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x - 1, y + 1].Flagged)
-                    totalFlags++;
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x, y - 1].Flagged && board.Board[x, y - 1].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x, y - 1].Flagged)
-                    totalFlags++;
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y - 1].Flagged && board.Board[x + 1, y - 1].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x + 1, y - 1].Flagged)
-                    totalFlags++;
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y].Flagged && board.Board[x + 1, y].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x + 1, y].Flagged)
-                    totalFlags++;
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y + 1].Flagged && board.Board[x + 1, y + 1].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x + 1, y + 1].Flagged)
-                    totalFlags++;
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x, y + 1].Flagged && board.Board[x, y + 1].IsMine)
-                {
-                    totalCorrectFlagged++;
-                }
-                if (board.Board[x, y + 1].Flagged)
-                    totalFlags++;
-            }
-            catch { }
             if (totalCorrectFlagged == totalFlags)
             {
-                try
+                for (int row = -1; row < 2; row++)
                 {
-                    if (!board.Board[x - 1, y - 1].IsMine)
+                    for (int col = -1; col < 2; col++)
                     {
-                        board.Board[x - 1, y - 1].IsRevealed = true;
-                        if (board.Board[x - 1, y - 1].TotalMines == 0)
-                            RevealEmpty(board, x - 1, y - 1);
+                        try
+                        {
+                            if (!board.Board[x + row, y + col].IsMine)
+                            {
+                                board.Board[x + row, y + col].IsRevealed = true;
+                                if (board.Board[x + row, y + col].TotalMines == 0)
+                                    RevealEmpty(board, x + row, y + col);
+                            }
+                        }
+                        catch { }
                     }
                 }
-                catch { }
-                try
-                {
-                    if (!board.Board[x - 1, y].IsMine)
-                    {
-                        board.Board[x - 1, y].IsRevealed = true;
-                        if (board.Board[x - 1, y].TotalMines == 0)
-                            RevealEmpty(board, x - 1, y);
-                    }
-                }
-                catch { }
-                try
-                {
-                    if (!board.Board[x - 1, y + 1].IsMine)
-                    {
-                        board.Board[x - 1, y + 1].IsRevealed = true;
-                        if (board.Board[x - 1, y + 1].TotalMines == 0)
-                            RevealEmpty(board, x - 1, y + 1);
-                    }
-                }
-                catch { }
-                try
-                {
-                    if (!board.Board[x, y + 1].IsMine)
-                    {
-                        board.Board[x, y + 1].IsRevealed = true;
-                        if (board.Board[x, y + 1].TotalMines == 0)
-                            RevealEmpty(board, x, y + 1);
-                    }
-                }
-                catch { }
-                try
-                {
-                    if (!board.Board[x + 1, y - 1].IsMine)
-                    {
-                        board.Board[x + 1, y - 1].IsRevealed = true;
-                        if (board.Board[x + 1, y - 1].TotalMines == 0)
-                            RevealEmpty(board, x + 1, y - 1);
-                    }
-                }
-                catch { }
-                try
-                {
-                    if (!board.Board[x + 1, y].IsMine)
-                    {
-                        board.Board[x + 1, y].IsRevealed = true;
-                        if (board.Board[x + 1, y].TotalMines == 0)
-                            RevealEmpty(board, x + 1, y);
-                    }
-                }
-                catch { }
-                try
-                {
-                    if (!board.Board[x + 1, y + 1].IsMine)
-                    {
-                        board.Board[x + 1, y + 1].IsRevealed = true;
-                        if (board.Board[x + 1, y + 1].TotalMines == 0)
-                            RevealEmpty(board, x + 1, y + 1);
-                    }
-                }
-                catch { }
-                try
-                {
-                    if (!board.Board[x, y - 1].IsMine)
-                    {
-                        board.Board[x, y - 1].IsRevealed = true;
-                        if (board.Board[x, y - 1].TotalMines == 0)
-                            RevealEmpty(board, x , y - 1);
-                    }
-                }
-                catch { }
             }
             return board;
         }
         private bool ScanAdjacent(MinesweeperBoard board, int x, int y)
         {
-            try
+            for (int row = -1; row < 2; row++)
             {
-                if (board.Board[x - 1, y - 1].IsRevealed == false)
+                for (int col = -1; col < 2; col++)
                 {
-                    return false;
+                    try
+                    {
+                        if (board.Board[x + row, y + col].IsRevealed == false)
+                        {
+                            return false;
+                        }
+                    }
+                    catch { }
                 }
             }
-            catch { }
-            try
-            {
-                if (board.Board[x - 1, y].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x - 1, y + 1].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x, y - 1].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x, y + 1].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y - 1].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
-            try
-            {
-                if (board.Board[x + 1, y + 1].IsRevealed == false)
-                {
-                    return false;
-                }
-            }
-            catch { }
             return true;
+        }
+        private MinesweeperBoard PerformMove(MinesweeperBoard board, CommandContext ctx, string rawInput, string move, int xPosition)
+        {
+            var yPosition = 0;
+            if (rawInput.Contains("unflag"))
+            {
+                try
+                {
+                    yPosition = Int32.Parse(move[1].ToString());
+                    board.Board[xPosition, yPosition].Flagged = false;
+                }
+                catch
+                {
+                    var msg = ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
+                    Task.Delay(5000);
+                    msg.Result.DeleteAsync();
+                }
+            }
+            else if (rawInput.Contains("flag"))
+            {
+                try
+                {
+                    yPosition = Int32.Parse(move[1].ToString());
+                    board.Board[xPosition, yPosition].Flagged = true;
+                }
+                catch
+                {
+                    var msg = ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
+                    Task.Delay(5000);
+                    msg.Result.DeleteAsync();
+                }
+            }
+            else
+            {
+                try
+                {
+                    yPosition = Int32.Parse(move[1].ToString());
+                    if (board.Board[xPosition, yPosition].IsRevealed)
+                        Chording(board, xPosition, yPosition);
+                    else
+                        board.Board[xPosition, yPosition].IsRevealed = true;
+                    if (board.Board[xPosition, yPosition].TotalMines == 0)
+                    {
+                        board = RevealEmpty(board, xPosition, yPosition);
+                    }
+                }
+                catch
+                {
+                    var msg = ctx.Channel.SendMessageAsync("An input is invalid, make sure you input a letter and a number.");
+                    Task.Delay(5000);
+                    msg.Result.DeleteAsync();
+                }
+            }
+            return board;
         }
     }
 }

@@ -1698,7 +1698,20 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             Bot.PlayerDatabase.UpdatePlayer(user);
-            if(GeneralFunctions.ValidatePlayer(ctx, user))
+            if (user == null)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx.User, embed);
+                embed.Color = DiscordColor.Blurple;
+            }
+            else if (user.GameCooldownIgnore == false)
+            {
+                embed.Title = "Minigame Cooldown Removed";
+                embed.Description = "Minigame cooldowns will no longer be applied to you. You will not be able to collect rewards from minigames. This does not apply to scrambler.";
+                embed.Color = DiscordColor.Green;
+                user.GameCooldownIgnore = true;
+                Bot.PlayerDatabase.UpdatePlayer(user);
+            }
+            else
             {
                 embed.Title = "Cooldown Already Ignored";
                 embed.Description = "You are already ignoring minigame cooldowns.";
@@ -1713,7 +1726,20 @@ namespace GameTime.Commands
             var embed = new DiscordEmbedBuilder();
             var user = Bot.PlayerDatabase.GetPlayerByID(Convert.ToInt64(ctx.Member.Id));
             Bot.PlayerDatabase.UpdatePlayer(user);
-            if(GeneralFunctions.ValidatePlayer(ctx, user))
+            if (user == null)
+            {
+                embed = Bot.PlayerDatabase.NewPlayer(ctx.User, embed);
+                embed.Color = DiscordColor.Blurple;
+            }
+            else if (user.GameCooldownIgnore == true)
+            {
+                embed.Title = "Minigame Cooldown Applied";
+                embed.Description = "Minigame cooldowns will now be applied to you. You can now get rewards from minigames.";
+                embed.Color = DiscordColor.Green;
+                user.GameCooldownIgnore = false;
+                Bot.PlayerDatabase.UpdatePlayer(user);
+            }
+            else
             {
                 embed.Title = "Cooldown Already Applied";
                 embed.Description = "You are already not ignoring minigame cooldowns.";
@@ -1739,14 +1765,7 @@ namespace GameTime.Commands
                     embed.Color = DiscordColor.Red;
                     await ctx.Channel.SendMessageAsync(embed: embed);
                 }
-                else if (partner == null)
-                {
-                    embed.Title = "Could Not Locate Player";
-                    embed.Description = "Could not find the player you attempted to trade with.";
-                    embed.Color = DiscordColor.Red;
-                    await ctx.Channel.SendMessageAsync(embed: embed);
-                }
-                else if (partnerInv == null)
+                else if (partner == null || partnerInv == null)
                 {
                     embed.Title = "Could Not Locate Player";
                     embed.Description = "Could not find the player you attempted to trade with.";
@@ -1765,9 +1784,7 @@ namespace GameTime.Commands
                         await response.Result.DeleteAsync();
                     }
                     catch
-                    {
-
-                    }
+                    { }
                     if (response.TimedOut)
                     {
                         embed.Description = $"{partner.Username} did not answer. Trade has been cancelled.";
@@ -1790,8 +1807,8 @@ namespace GameTime.Commands
                         await message.ModifyAsync(null, bembed);
                         var userConfirm = false;
                         var partnerConfirm = false;
-                        var userItems = new List<Item>();
-                        var partnerItems = new List<Item>();
+                        var userItems = new List<Item>();  //stores user offered items
+                        var partnerItems = new List<Item>(); //stores partner's offered items
                         var display = "";
                         var userStatus = "Unconfirmed";
                         var partnerStatus = "Unconfirmed";
@@ -1800,7 +1817,15 @@ namespace GameTime.Commands
                             display = "";
                             var name = "";
                             response = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.Member || x.Author == partner, TimeSpan.FromSeconds(180));
-                            if (response.Result.Content.ToLower().Contains("+add"))
+                            if (response.TimedOut)
+                            {
+                                embed.ClearFields();
+                                embed.Description = "Trade timed out. Trade has been cancelled.";
+                                embed.Color = DiscordColor.Red;
+                                bembed = embed;
+                                await message.ModifyAsync(null, bembed);
+                            }
+                            else if (response.Result.Content.ToLower().Contains("+add"))
                             {
                                 var Name = response.Result.Content.Split("+add ");
                                 if (Name.Length > 1)
@@ -1816,23 +1841,17 @@ namespace GameTime.Commands
                                     name = Name[1];
                                 }
                             }
-                            if (response.TimedOut)
-                            {
-                                embed.ClearFields();
-                                embed.Description = "Trade timed out. Trade has been cancelled.";
-                                embed.Color = DiscordColor.Red;
-                                bembed = embed;
-                                await message.ModifyAsync(null, bembed);
-                            }
                             else if (response.Result.Author == ctx.Member)
                             {
                                 if (response.Result.Content.ToLower() == "+unconfirm")
                                 {
                                     userConfirm = false;
                                     userStatus = "Unconfirmed";
-                                    var embed2 = new DiscordEmbedBuilder();
-                                    embed2.Title = $"{ctx.Member.Username} unconfirmed.";
-                                    embed2.Color = DiscordColor.Red;
+                                    var embed2 = new DiscordEmbedBuilder
+                                    {
+                                        Title = $"{ctx.Member.Username} unconfirmed.",
+                                        Color = DiscordColor.Red
+                                    };
                                     await ctx.Channel.SendMessageAsync(embed: embed2);
                                     try
                                     {
@@ -1867,9 +1886,11 @@ namespace GameTime.Commands
                                 }
                                 else if (userConfirm == true)
                                 {
-                                    var embed2 = new DiscordEmbedBuilder();
-                                    embed2.Title = $"{ctx.Member.Username} cannot modify their end.";
-                                    embed2.Color = DiscordColor.Red;
+                                    var embed2 = new DiscordEmbedBuilder
+                                    {
+                                        Title = $"{ctx.Member.Username} cannot modify their end.",
+                                        Color = DiscordColor.Red
+                                    };
                                     await ctx.Channel.SendMessageAsync(embed: embed2);
                                     try
                                     {
