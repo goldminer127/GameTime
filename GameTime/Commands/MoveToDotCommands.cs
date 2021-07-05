@@ -171,7 +171,7 @@ namespace GameTime.Commands
                                         embed3.Title = "Cannot Move To That Position";
                                         embed3.Color = DiscordColor.Red;
                                         var invalidPosMessage = await ctx.Channel.SendMessageAsync(embed: embed3);
-                                        GeneralFunctions.DelayMessageDeletion(invalidPosMessage, 3000);
+                                        GeneralFunctions.DelayMessageDeletion(invalidPosMessage, 3000); //do not apply await
                                         break;
                                     }
                                     else
@@ -208,7 +208,7 @@ namespace GameTime.Commands
                                         embed3.Title = "Cannot Move To That Position";
                                         embed3.Color = DiscordColor.Red;
                                         var invalidPosMessage = await ctx.Channel.SendMessageAsync(embed: embed3);
-                                        GeneralFunctions.DelayMessageDeletion(invalidPosMessage, 3000);
+                                        GeneralFunctions.DelayMessageDeletion(invalidPosMessage, 3000); //do not apply await
                                         break;
                                     }
                                     else

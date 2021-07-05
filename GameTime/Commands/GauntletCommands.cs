@@ -1,16 +1,11 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
 using GameTime.MinesweeperModels;
 using GameTime.DotPuzzleModels;
 using GameTime.ScramblerModels;
-using GameTime.Extensions;
 using GameTime.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using DSharpPlus.Interactivity;
 using System.Threading.Tasks;
 using DSharpPlus.Interactivity.Extensions;
 
