@@ -45,7 +45,7 @@ namespace GameTime
                 }
                 Console.WriteLine($"{e.Member.Username} left {e.Guild.Name}");
             }
-            var channel = Bot.HomeGuild.GetChannel(750017135069233284);
+            var channel = Bot.HomeGuild.GetChannel(729501695934988300);
             await channel.SendMessageAsync($"{e.Member.Username} left {e.Guild.Name}").ConfigureAwait(false);
         }
         public static async Task CommandErrored(CommandsNextExtension cmd, CommandErrorEventArgs e)

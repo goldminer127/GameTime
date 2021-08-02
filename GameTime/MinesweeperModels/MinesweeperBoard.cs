@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace GameTime.MinesweeperModels
 {
-    class MinesweeperBoard
+    public class MinesweeperBoard
     {
         public MinesweeperSquare[,] Board { get; set; } = new MinesweeperSquare[10, 10];
         public MineDifficulty Difficulty { get; }
