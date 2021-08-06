@@ -20,16 +20,28 @@ namespace GameTime.Connect4Models
         }
         public string ConstructDisplay(byte[,] board)
         {
-            var display = "Respond with the column number you want to place your chip.\n=============\n```";
+            var display = "Respond with the column number you want to place your chip.\n===================\n";
             for (int row = 0; row < board.GetLength(0); row++)
             {
+                display += "| ";
                 for (int col = 0; col < board.GetLength(1); col++)
                 {
-                    display += $"{board[row, col]} ";
+                    switch(board[row, col])
+                    {
+                        case 0:
+                            display += $":white_circle: ";
+                            break;
+                        case 1:
+                            display += $":yellow_circle: ";
+                            break;
+                        case 2:
+                            display += $":red_circle: ";
+                            break;
+                    }
                 }
                 display += "|\n";
             }
-            display += "=============\n1 2 3 4 5 6 7\n```";
+            display += "===================\n| :one: :two: :three: :four: :five: :six: :seven: |";
             return display;
         }
     }

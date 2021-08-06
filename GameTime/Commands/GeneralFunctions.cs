@@ -116,7 +116,15 @@ namespace GameTime.Commands
             else if (player.IsBanned == true && isNotCoreFunction == false)
             {
                 embed.Title = "You Are Banned";
-                embed.Description += " You are currently banned form using the main feature of this bot.";
+                embed.Description += "You are currently banned form using the main feature of this bot.";
+                embed.Color = DiscordColor.Red;
+                ctx.Channel.SendMessageAsync(embed: embed);
+                return false;
+            }
+            else if(player.InMinigame)
+            {
+                embed.Title = "You are currently in a mini-game";
+                embed.Description += "Exit your current mini-game to use commands.";
                 embed.Color = DiscordColor.Red;
                 ctx.Channel.SendMessageAsync(embed: embed);
                 return false;

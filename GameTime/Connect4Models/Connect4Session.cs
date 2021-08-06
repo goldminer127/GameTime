@@ -28,8 +28,10 @@ namespace GameTime.Connect4Models
         public string SessionKey { get; set; }
         public byte PlayerTurn { get; set; } = 1;
         public bool SessionEnd { get; set; } = false;
-        public Connect4Session()
+        public bool IsPublic { get; set; }
+        public Connect4Session(bool isPublic)
         {
+            IsPublic = isPublic;
             for (int keyLength = 4; keyLength != 0; keyLength--)
             {
                 SessionKey += new Random().Next(0, 10);
