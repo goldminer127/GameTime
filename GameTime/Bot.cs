@@ -120,7 +120,9 @@ namespace GameTime
             commands.RegisterCommands<CasinoGames>();
             Console.WriteLine("Casino Initialized");
             commands.RegisterCommands<BetaCommands>();
-            Console.WriteLine("Gauntlet Initialized");
+            Console.WriteLine("BetaCommands Initialized");
+            commands.RegisterCommands<MultiplayerCommands>();
+            Console.WriteLine("Connect4 Initialized");
             await client.ConnectAsync();
             await Task.Delay(-1);
         }

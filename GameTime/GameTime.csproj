@@ -6,9 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DSharpPlus" Version="4.1.0-nightly-00863" />
-    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.1.0-nightly-00863" />
-    <PackageReference Include="DSharpPlus.Interactivity" Version="4.1.0-nightly-00863" />
+    <PackageReference Include="DSharpPlus" Version="4.1.0-nightly-00930" />
+    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.1.0-nightly-00930" />
+    <PackageReference Include="DSharpPlus.Interactivity" Version="4.1.0-nightly-00930" />
     <PackageReference Include="LiteDB" Version="5.0.10" />
     <PackageReference Include="System.Drawing.Common" Version="6.0.0-preview.2.21154.6" />
     <PackageReference Include="System.Runtime" Version="4.3.1" />
