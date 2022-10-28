@@ -4,8 +4,11 @@ using System.Text;
 
 namespace GameTime.Models
 {
-    class Slot
+    public enum Rarity
     {
-        public string Symbol { get; set; }
+        Common,
+        Uncommon,
+        Rare,
+        Unique,
     }
 }
