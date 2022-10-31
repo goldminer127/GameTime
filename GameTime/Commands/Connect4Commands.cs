@@ -39,24 +39,24 @@ namespace GameTime.Commands
         public async Task JoinConnect4(CommandContext ctx)
         {
             //Game search
-            var deleteInstance = false;
+            var primaryInstance = false; //For delete and single displays
             if (Bot.GameSessions.IsPublicEmpty())
             {
                 var session = new Connect4Session(false, 2);
                 session.Join(ctx);
                 Bot.GameSessions.AddSession(session);
-                deleteInstance = true;
-                await GameSearch(ctx, session, deleteInstance);
+                primaryInstance = true;
+                await GameSearch(ctx, session, primaryInstance);
             }
             else
             {
                 var session = Bot.GameSessions.SearchOpenPublicSession();
                 session.Join(ctx);
                 Bot.GameSessions.UpdateSession(session);
-                await GameSearch(ctx, session, deleteInstance);
+                await GameSearch(ctx, session, primaryInstance);
             }
         }
-        private async Task GameSearch(CommandContext ctx, GameSession session, bool deleteInstance)
+        private async Task GameSearch(CommandContext ctx, GameSession session, bool primaryInstance)
         {
             var message = await ctx.Channel.SendMessageAsync("Searching for game...");
             while (session.GameStatus != Status.Close && session.GameStatus != Status.Exited)
@@ -74,10 +74,10 @@ namespace GameTime.Commands
             await message.DeleteAsync();
             if(session.GameStatus != Status.Exited)
             {
-                await TurnHandler(ctx, session, deleteInstance);
+                await TurnHandler(ctx, session, primaryInstance);
             }
         }
-        private async Task TurnHandler(CommandContext ctx, GameSession session, bool deleteInstance)
+        private async Task TurnHandler(CommandContext ctx, GameSession session, bool primaryInstance)
         {
             //Game interaction
             var message = await ctx.Channel.SendMessageAsync((ctx.User.Id == session.CurrentTurn.Id) ? $"{ctx.User.Mention} your move" : "", session.GameDisplay("No problems"));
@@ -115,7 +115,7 @@ namespace GameTime.Commands
             //Clear the ping in message when game ends
             var newMessage = new DiscordMessageBuilder().AddEmbed(session.Display);
             message = await message.ModifyAsync(newMessage);
-            if (deleteInstance)
+            if (primaryInstance)
             {
                 Bot.GameSessions.RemoveSession(session.SessionId);
             }
