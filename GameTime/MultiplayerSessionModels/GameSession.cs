@@ -21,7 +21,9 @@ namespace GameTime.MultiplayerSessionModels
         public abstract void Join(CommandContext playerCtx);
         public abstract void Start();
         public abstract bool MakeMove(string args);
-        public abstract bool CheckMultiPlayersInChannel(ulong channelId);
+        /*Use this to check when both players are in the same channel. The bot will send 1 display message rather
+          than 2 messages in the same channel. */
+        public abstract bool PlayersInSameChannel(ulong channelId);
         public abstract GameSession SetStatus(Status status);
         public abstract DiscordEmbed GameDisplay(string status);
         public abstract DiscordEmbed EndGameDisplay(bool winner);

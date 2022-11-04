@@ -139,7 +139,6 @@ namespace GameTime.Connect4Models
                     }
                 }
             }
-            Console.WriteLine($"Left {connectedLeftDiagnol} Right {connectedRightDiagnol}");
             return connectedRightDiagnol >= 4 || connectedLeftDiagnol >= 4;
         }
         public override string ToString()

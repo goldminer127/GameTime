@@ -95,7 +95,8 @@ namespace GameTime.Connect4Models
             }
             CurrentTurn = Players[PlayerNextIndex].User;
         }
-        public override bool CheckMultiPlayersInChannel(ulong channelId)
+
+        public override bool PlayersInSameChannel(ulong channelId)
         {
             var totalPlayers = 0;
             for(int i = 0; i < Players.Count; i++)
@@ -105,8 +106,9 @@ namespace GameTime.Connect4Models
                     totalPlayers++;
                 }
             }
-            return totalPlayers == 1;
+            return totalPlayers > 1;
         }
+
         //Display handlers
         public override DiscordEmbed GameDisplay(string status)
         {

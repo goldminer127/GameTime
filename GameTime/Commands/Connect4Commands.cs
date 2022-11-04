@@ -79,8 +79,16 @@ namespace GameTime.Commands
         }
         private async Task TurnHandler(CommandContext ctx, GameSession session, bool primaryInstance)
         {
-            //Game interaction
-            var message = await ctx.Channel.SendMessageAsync((ctx.User.Id == session.CurrentTurn.Id) ? $"{ctx.User.Mention} your move" : "", session.GameDisplay("No problems"));
+            /*Checks are to send a single message when both players are in the same text channel. Checks in this statement
+              also alternates who to ping based on which player's turn it is. ALL MESSAGE STATEMENTS CONTAINS A CHECK WHETHER
+              TO SEND A SINGLE MESSAGE IN 1 CHANNEL OR 2 MESSAGES TO SEPARATE CHANNELS*/
+            var message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? 
+                (primaryInstance) ? 
+                    await ctx.Channel.SendMessageAsync((ctx.User.Id == session.CurrentTurn.Id) ? 
+                        $"{ctx.User.Mention} your move" : "", session.GameDisplay("No problems")) 
+                : null
+            : await ctx.Channel.SendMessageAsync((ctx.User.Id == session.CurrentTurn.Id) ? 
+                $"{ctx.User.Mention} your move" : "", session.GameDisplay("No problems"));
             while (session.GameStatus != Status.Completed && session.GameStatus != Status.Exited)
             {
                 //Allows user to exit while it isn't their turn
@@ -91,7 +99,7 @@ namespace GameTime.Commands
                     if (response.TimedOut)
                     {
                         var waitUpdateMessage = new DiscordMessageBuilder().AddEmbed(session.Display).WithContent($"");
-                        message = await message.ModifyAsync(waitUpdateMessage);
+                        message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(waitUpdateMessage) : null : await message.ModifyAsync(waitUpdateMessage);
                     }
                     else if (response.Result.Content.ToLower().Contains("exit"))
                     {
@@ -103,18 +111,18 @@ namespace GameTime.Commands
                 if (session.GameStatus != Status.Completed && session.GameStatus != Status.Exited)
                 {
                     var updateMessage = new DiscordMessageBuilder().AddEmbed(session.Display).WithContent($"{ctx.User.Mention} your move");
-                    message = await message.ModifyAsync(updateMessage);
+                    message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(updateMessage) : null : await message.ModifyAsync(updateMessage);
                     session = Bot.GameSessions.GetSession(session.SessionId);
                     session = ActionHandler(ctx, session.SessionId, message).Result;
                     Bot.GameSessions.UpdateSession(session);
                     updateMessage = new DiscordMessageBuilder().AddEmbed(session.Display).WithContent($"");
-                    message = await message.ModifyAsync(updateMessage);
+                    message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(updateMessage) : null : await message.ModifyAsync(updateMessage);
                 }
             }
             session = Bot.GameSessions.GetSession(session.SessionId);
             //Clear the ping in message when game ends
             var newMessage = new DiscordMessageBuilder().AddEmbed(session.Display);
-            message = await message.ModifyAsync(newMessage);
+            message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(newMessage) : null : await message.ModifyAsync(newMessage);
             if (primaryInstance)
             {
                 Bot.GameSessions.RemoveSession(session.SessionId);
