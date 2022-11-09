@@ -8,7 +8,7 @@ namespace GameTime.MinesweeperModels
         public Tile[,] Board { get; private set; }
         public Difficulty Difficulty { get; private set; }
         public int TotalFlags { get; private set; }
-        public int Status { get; private set; } = 0; //0 == ongoing, 1 == loose, 2 == win
+        public int Status { get; set; } = 0; //0 == ongoing, 1 == loose, 2 == win, 3 == exited/timedout
         private int TotalMines { get; set; }
         private int FlaggedMines { get; set; }
         //Does not include label row and column

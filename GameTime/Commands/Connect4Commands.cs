@@ -38,8 +38,7 @@ namespace GameTime.Commands
         [Command("connect4"), Aliases("cn4")]
         public async Task JoinConnect4(CommandContext ctx)
         {
-            //Game search
-            var primaryInstance = false; //For delete and single displays
+            var primaryInstance = false; //For removing session from database and single displays
             if (Bot.GameSessions.IsPublicEmpty())
             {
                 var session = new Connect4Session(false, 2);

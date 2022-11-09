@@ -86,6 +86,7 @@ namespace GameTime.Commands
             var response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Author.Id == ctx.Member.Id && msg.Channel == ctx.Channel, TimeSpan.FromMinutes(5));
             if(response.TimedOut)
             {
+                board.Status = 3;
                 await message.ModifyAsync(new DiscordEmbedBuilder()
                 {
                     Title = "Minesweeper",
@@ -96,17 +97,29 @@ namespace GameTime.Commands
             {
                 var command = response.Result.Content.ToUpper().Replace(" ", "");
                 var log = "";
-                if(command.Contains("FLAG"))
+                if (command.Contains("EXIT"))
                 {
-                    var coords = command.Replace("FLAG", "").Split(',');
-                    board = PerformAction(coords, board, true);
+                    board.Status = 3;
+                    await message.ModifyAsync(new DiscordEmbedBuilder()
+                    {
+                        Title = "Minesweeper",
+                        Description = "Game has been exited",
+                    }.AddField("Map", board.ToString()).Build());
                 }
                 else
                 {
-                    board = PerformAction(command.Split(','), board);
+                    if (command.Contains("FLAG"))
+                    {
+                        var coords = command.Replace("FLAG", "").Split(',');
+                        board = PerformAction(coords, board, true);
+                    }
+                    else
+                    {
+                        board = PerformAction(command.Split(','), board);
+                    }
+                    await response.Result.DeleteAsync();
+                    Console.WriteLine(log);
                 }
-                await response.Result.DeleteAsync();
-                Console.WriteLine(log);
             }
             return board;
         }
@@ -162,13 +175,13 @@ namespace GameTime.Commands
                 {
                     Title = "Minesweeper (Lost)",
                     Color = DiscordColor.Red
-                }.AddField("Map", board.ToString()).WithFooter("Death by lack of legs")).Build(),
+                }.AddField("Map", board.ToString())).Build(),
                 2 => GenerateWinQuip(new DiscordEmbedBuilder()
                 {
                     Title = "Minesweeper (Won)",
                     Description = "You didn't step on a mine? That is boring.",
                     Color = DiscordColor.Green
-                }.AddField("Map", board.ToString()).WithFooter("Is not allergic to mines")).Build(),
+                }.AddField("Map", board.ToString())).Build(),
             };
         }
         private DiscordEmbedBuilder GenerateLoseQuip(DiscordEmbedBuilder embed)
