@@ -62,19 +62,13 @@ namespace GameTime.Commands
             {
                 var response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromSeconds(2));
                 if (response.TimedOut)
-                {
                     session = Bot.GameSessions.GetSession(session.SessionId);
-                }
                 else
-                {
                     session.SetStatus(Status.Exited);
-                }
             }
             await message.DeleteAsync();
             if(session.GameStatus != Status.Exited)
-            {
                 await TurnHandler(ctx, session, primaryInstance);
-            }
         }
         private async Task TurnHandler(CommandContext ctx, GameSession session, bool primaryInstance)
         {
@@ -123,9 +117,7 @@ namespace GameTime.Commands
             var newMessage = new DiscordMessageBuilder().AddEmbed(session.Display);
             message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(newMessage) : null : await message.ModifyAsync(newMessage);
             if (primaryInstance)
-            {
                 Bot.GameSessions.RemoveSession(session.SessionId);
-            }
         }
         private async Task<GameSession> ActionHandler(CommandContext ctx, string sessionId, DiscordMessage message)
         {
@@ -139,9 +131,7 @@ namespace GameTime.Commands
                 session = Bot.GameSessions.GetSession(sessionId);
                 //Cancel move if an opponent conceeds
                 if (session.GameStatus == Status.Completed || session.GameStatus == Status.Exited)
-                {
                     return session;
-                }
             }
             //Response handler
             session = Bot.GameSessions.GetSession(sessionId);

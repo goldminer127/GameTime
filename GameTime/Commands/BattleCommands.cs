@@ -38,13 +38,9 @@ namespace GameTime.Commands
 
             var response = await ctx.Client.GetInteractivity().WaitForSelectAsync(message, ctx.User, componentId, timeoutOverride: TimeSpan.FromMinutes(2));
             if(!response.TimedOut)
-            {
                 await message.ModifyAsync(new DiscordMessageBuilder().WithEmbed(message.Embeds[0]));
-            }
             else
-            {
                 CreateListEmbed(response.Result.Values[0]);
-            }
         }
         [Command("list"), Description("Lists all items based on the type given. Will give a menu of all item types if no parameters are given.")]
         public async Task List(CommandContext ctx, [RemainingText] string type)
@@ -128,9 +124,7 @@ namespace GameTime.Commands
             foreach(var it in Bot.GameItems.Items)
             {
                 if(it.Value.Type == type)
-                {
                     items.Add(it.Value);
-                }
             }
             return items;
         }
