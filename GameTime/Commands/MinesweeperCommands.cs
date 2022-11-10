@@ -19,16 +19,13 @@ namespace GameTime.Commands
             while (board.Status == 0)
             {
                 board = SinglePlayerActionHandler(ctx, message, board).Result;
-                message = await message.ModifyAsync(MakeDisplay(board));
+                if(board.Status != 3)
+                    message = await message.ModifyAsync(MakeDisplay(board));
             }
             if(board.Status == 1)
-            {
                 await message.ModifyAsync(MakeResultDisplay(board));
-            }
             else if(board.Status == 2)
-            {
                 await message.ModifyAsync(MakeResultDisplay(board));
-            }
         }
         private async Task<MinesweeperBoard> DifficultySelectorHandler(CommandContext ctx)
         {
@@ -104,7 +101,7 @@ namespace GameTime.Commands
                     {
                         Title = "Minesweeper",
                         Description = "Game has been exited",
-                    }.AddField("Map", board.ToString()).Build());
+                    }.AddField("Map", board.ToString()).WithColor(DiscordColor.Orange).Build());
                 }
                 else
                 {
@@ -131,13 +128,9 @@ namespace GameTime.Commands
                 if (VerifyTile(coord))
                 {
                     if (!isFlag)
-                    {
                         board.RevealTile(coords[i][0], coords[i][1]);
-                    }
                     else
-                    {
                         board.FlagTile(coords[i][0], coords[i][1]);
-                    }
                 }
             }
             return board;
@@ -145,13 +138,9 @@ namespace GameTime.Commands
         private bool VerifyTile(string coord)
         {
             if (coord[0] < 91 && coord[0] >= 65 && coord[1] >= 48 && coord[1] < 58 && coord.Length == 2)
-            {
                 return true;
-            }
             else
-            {
                 return false;
-            }
         }
         private DiscordEmbed MakeDisplay(MinesweeperBoard board)
         {
