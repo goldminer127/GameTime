@@ -42,9 +42,7 @@ namespace GameTime.Connect4Models
                 if (!CheckHorizontal(row, col, player))
                 {
                     if (!CheckVertical(row, col, player))
-                    {
                         return false;
-                    }
                 }
             }
             return true;
@@ -106,26 +104,22 @@ namespace GameTime.Connect4Models
             {
                 for (int c = -1; c < 2; c += 2)
                 {
-                    for (int i = 0; i < 4 && (row + (i * r)) >= 0 && (row + (i * r)) < Board.GetLength(0) && col + (i * c) >= 0 && col + (i * c) < Board.GetLength(1); i++)
+                    //Boolean check: i < 4 && row bounds check && col bounds check 
+                    for (int i = 0; i < 4 && (row + (i * r)) >= 0 && (row + (i * r)) < Board.GetLength(0) && col + (i * c) >= 0 && col + (i * c) < Board.GetLength(1) && (connectedLeftDiagnol < 4 && connectedRightDiagnol < 4); i++)
                     {
-                        if (Board[row + (i * r), col + (i * c)].Chip != null && Board[row + (i * r), col + (i * c)].Chip.PlayerNum == player && connectedLeftDiagnol < 4 && connectedRightDiagnol < 4)
+                        if (Board[row + (i * r), col + (i * c)].Chip != null && Board[row + (i * r), col + (i * c)].Chip.PlayerNum == player)
                         {
                             if(r == c)
-                            {
                                 connectedLeftDiagnol++;
-                            }
                             else
-                            {
                                 connectedRightDiagnol++;
-                            }
-                            Console.WriteLine($"r {r} c {c} row {row + (i * r)} col {col + (i * c)} Left {connectedLeftDiagnol} Right {connectedRightDiagnol}");
-                        }
-                        else if(connectedLeftDiagnol >= 4 || connectedRightDiagnol >= 4)
-                        {
-                            break;
+                            //For debugging
+                            //Console.WriteLine($"r {r} c {c} row {row + (i * r)} col {col + (i * c)} Left {connectedLeftDiagnol} Right {connectedRightDiagnol}");
                         }
                         else
                         {
+                            /* If there is a hole that breaks the diagnol, subtract 1 to remove the original chip from the count.
+                             * the next iteration will recount the chip to the total */
                             if(r == c)
                             {
                                 connectedLeftDiagnol--;
@@ -150,13 +144,9 @@ namespace GameTime.Connect4Models
                 for(int col = 0; col < Board.GetLength(1); col++)
                 {
                     if(Board[row, col].Chip == null)
-                    {
                         result += $":white_circle: ";
-                    }
                     else
-                    {
                         result += $"{Board[row, col].Chip.ChipColor} ";
-                    }
                 }
                 result += "|\n";
             }

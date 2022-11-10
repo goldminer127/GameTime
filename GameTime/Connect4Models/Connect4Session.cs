@@ -44,9 +44,7 @@ namespace GameTime.Connect4Models
             {
                 Players.Add(player);
                 if(Players.Count == PlayerLimit)
-                {
                     Start();
-                }
             }
         }
         public override void Start()
@@ -102,9 +100,7 @@ namespace GameTime.Connect4Models
             for(int i = 0; i < Players.Count; i++)
             {
                 if(channelId == Players[i].Channel.Id)
-                {
                     totalPlayers++;
-                }
             }
             return totalPlayers > 1;
         }
@@ -117,9 +113,7 @@ namespace GameTime.Connect4Models
             {
                 players += (CurrentTurn.Id == Players[i].User.Id) ? $"**__{Players[i].User.Username}__**" : $"{Players[i].User.Username}";
                 if (i + 1 < Players.Count)
-                {
                     players += " v ";
-                }
             }
             Display = new DiscordEmbedBuilder()
             {
@@ -136,9 +130,7 @@ namespace GameTime.Connect4Models
             {
                 players += $"{Players[i].User.Username}";
                 if (i + 1 < Players.Count)
-                {
                     players += " v ";
-                }
             }
             Display = new DiscordEmbedBuilder()
             {
@@ -155,9 +147,7 @@ namespace GameTime.Connect4Models
             {
                 players += $"{Players[i].User.Username}";
                 if (i + 1 < Players.Count)
-                {
                     players += " v ";
-                }
             }
             Display = new DiscordEmbedBuilder()
             {
