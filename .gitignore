@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Solutions File
+*.sln
+
 # User-specific files
 *.rsuser
 *.suo
