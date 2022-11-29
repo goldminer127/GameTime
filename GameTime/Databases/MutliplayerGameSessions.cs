@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 using GameTime.MultiplayerSessionModels;
 
 namespace GameTime.Databases
@@ -7,6 +9,7 @@ namespace GameTime.Databases
     {
         public Dictionary<string, GameSession> PublicSessions { get; private set; } = new Dictionary<string, GameSession>();
         public Dictionary<string, GameSession> PrivateSessions { get; private set; } = new Dictionary<string, GameSession>();
+        public List<ulong> PlayersInGame { get; private set; } = new List<ulong>();
         public MutliplayerGameSessions()
         {
 
@@ -47,11 +50,11 @@ namespace GameTime.Databases
             }
             return this;
         }
-        public GameSession SearchOpenPublicSession()
+        public GameSession SearchOpenPublicSession(string gameType)
         {
             foreach(var session in PublicSessions)
             {
-                if(session.Value.GameStatus == Status.Open)
+                if(session.Value.GameStatus == Status.Open && session.Value.SessionId.Contains(gameType))
                 {
                     return session.Value;
                 }
@@ -92,6 +95,23 @@ namespace GameTime.Databases
                 }
             }
             return true;
+        }
+        public void AddPlayerInSession(ulong id)
+        {
+            PlayersInGame.Add(id);
+        }
+        public bool PlayerInSession(ulong id)
+        {
+            return PlayersInGame.Contains(id);
+        }
+        public string GenerateGameId(string gameType)
+        {
+            var id = 0;
+            for (int i = 0; i < 5; i++)
+            {
+                id = (id * 10) + new Random().Next(0, 10);
+            }
+            return gameType + id;
         }
     }
 }
