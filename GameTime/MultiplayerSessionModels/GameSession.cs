@@ -17,8 +17,7 @@ namespace GameTime.MultiplayerSessionModels
         public abstract bool IsPrivate { get; protected set; }
         public abstract int PlayerLimit { get; protected set; }
         protected abstract int PlayerNextIndex { get; set; }
-        protected abstract void GenerateGameId();
-        public abstract void Join(CommandContext playerCtx);
+        public abstract bool Join(CommandContext playerCtx);
         public abstract void Start();
         public abstract bool MakeMove(string args);
         /*Use this to check when both players are in the same channel. The bot will send 1 display message rather
