@@ -1,6 +1,0 @@
-GameTime Update 1.0.4
-
-Bug Fixes:
--Movement limit adjusted for some connectx puzzles
-
-Changes:
