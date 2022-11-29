@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DSharpPlus.Entities;
 using DSharpPlus.CommandsNext;
 using GameTime.MultiplayerSessionModels;
+using GameTime.Databases;
 
 namespace GameTime.Connect4Models
 {
@@ -18,34 +19,28 @@ namespace GameTime.Connect4Models
         public override bool IsPrivate { get; protected set; }
         public override int PlayerLimit { get; protected set; }
         protected override int PlayerNextIndex { get; set; }
-        public Connect4Session(bool isPrivate)
+        public Connect4Session(bool isPrivateSession)
         {
-            IsPrivate = isPrivate;
-            GenerateGameId();
+            IsPrivate = isPrivateSession;
+            SessionId = Bot.GameSessions.GenerateGameId("cn4");
         }
-        public Connect4Session(bool isPrivate, short playerLimit)
+        public Connect4Session(bool isPrivateSession, short playerLimit)
         {
-            IsPrivate = isPrivate;
+            IsPrivate = isPrivateSession;
             PlayerLimit = playerLimit;
-            GenerateGameId();
+            SessionId = Bot.GameSessions.GenerateGameId("cn4");
         }
-        protected override void GenerateGameId()
-        {
-            var id = 0;
-            for (int i = 0; i < 5; i++)
-            {
-                id = (id * 10) + new Random().Next(0, 10);
-            }
-            SessionId = "cn4" + id;
-        }
-        public override void Join(CommandContext player)
+        public override bool Join(CommandContext player)
         {
             if(Players.Count < PlayerLimit)
             {
                 Players.Add(player);
-                if(Players.Count == PlayerLimit)
+                Bot.GameSessions.AddPlayerInSession(player.User.Id);
+                if (Players.Count == PlayerLimit)
                     Start();
+                return true;
             }
+            return false;
         }
         public override void Start()
         {

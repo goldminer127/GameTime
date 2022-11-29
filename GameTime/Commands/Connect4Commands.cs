@@ -11,53 +11,76 @@ namespace GameTime.Commands
 {
     public class Connect4Commands : BaseCommandModule
     {
-        [Command("connect4"), Aliases("cn4j")]
-        public async Task JoinConnect4(CommandContext ctx, string id)
+        [Command("connect4p"), Aliases("cn4p")]
+        public async Task JoinPrivateConnect4(CommandContext ctx, string id)
         {
             if (Bot.GameSessions.GetSession(id) == null)
             {
                 await ctx.Channel.SendMessageAsync($"Private session {id} does not exist");
             }
-            var deleteInstance = false;
-            if (Bot.GameSessions.IsPublicEmpty())
+            else if(Bot.GameSessions.PlayerInSession(ctx.User.Id))
             {
-                var session = new Connect4Session(false, 2);
-                session.Join(ctx);
-                Bot.GameSessions.AddSession(session);
-                deleteInstance = true;
-                await GameSearch(ctx, session, deleteInstance);
+                await ctx.Channel.SendMessageAsync("You are already in a game");
             }
             else
             {
                 var session = Bot.GameSessions.SearchOpenPrivateSession(id);
-                session.Join(ctx);
-                Bot.GameSessions.UpdateSession(session);
-                await GameSearch(ctx, session, deleteInstance);
+                if (session.Join(ctx))
+                {
+                    Bot.GameSessions.UpdateSession(session);
+                    await GameSearch(ctx, session, false); //never primary instance
+                }
+                else
+                {
+                    await ctx.Channel.SendMessageAsync("Could not join game");
+                }
             }
         }
-        [Command("connect4"), Aliases("cn4")]
-        public async Task JoinConnect4(CommandContext ctx)
+        [Command("connect4p")]
+        public async Task JoinPrivateConnect4(CommandContext ctx)
         {
-            var primaryInstance = false; //For removing session from database and single displays
-            if (Bot.GameSessions.IsPublicEmpty())
+            if (Bot.GameSessions.PlayerInSession(ctx.User.Id))
             {
-                var session = new Connect4Session(false, 2);
-                session.Join(ctx);
-                Bot.GameSessions.AddSession(session);
-                primaryInstance = true;
-                await GameSearch(ctx, session, primaryInstance);
+                await ctx.Channel.SendMessageAsync("You are already in a game");
             }
             else
             {
-                var session = Bot.GameSessions.SearchOpenPublicSession();
+                var session = new Connect4Session(true, 2);
                 session.Join(ctx);
-                Bot.GameSessions.UpdateSession(session);
-                await GameSearch(ctx, session, primaryInstance);
+                Bot.GameSessions.AddSession(session);
+                await GameSearch(ctx, session, true); //always primary instance
+            }
+        }
+        [Command("connect4"), Aliases("cn4j")]
+        public async Task JoinConnect4(CommandContext ctx)
+        {
+            if (Bot.GameSessions.PlayerInSession(ctx.User.Id))
+            {
+                await ctx.Channel.SendMessageAsync("You are already in a game");
+            }
+            else
+            {
+                var primaryInstance = false; //For removing session from database and single displays
+                if (Bot.GameSessions.IsPublicEmpty())
+                {
+                    var session = new Connect4Session(false, 2);
+                    session.Join(ctx);
+                    Bot.GameSessions.AddSession(session);
+                    primaryInstance = true;
+                    await GameSearch(ctx, session, primaryInstance);
+                }
+                else
+                {
+                    var session = Bot.GameSessions.SearchOpenPublicSession("cn4");
+                    session.Join(ctx);
+                    Bot.GameSessions.UpdateSession(session);
+                    await GameSearch(ctx, session, primaryInstance);
+                }
             }
         }
         private async Task GameSearch(CommandContext ctx, GameSession session, bool primaryInstance)
         {
-            var message = await ctx.Channel.SendMessageAsync("Searching for game...");
+            var message = await ctx.Channel.SendMessageAsync((session.IsPrivate && primaryInstance) ? $"Searching for player...\nId: {session.SessionId}" : "Searching for game...");
             while (session.GameStatus != Status.Close && session.GameStatus != Status.Exited)
             {
                 var response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromSeconds(2));
