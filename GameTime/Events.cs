@@ -21,7 +21,6 @@ namespace GameTime
             await e.Context.Channel.TriggerTypingAsync();
             await e.Context.Channel.SendMessageAsync("Error\n" + e.Exception.Message);
         }
-
         public static async Task AcknowledgeComponentInteraction(DiscordClient client, ComponentInteractionCreateEventArgs e)
         {
             await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);

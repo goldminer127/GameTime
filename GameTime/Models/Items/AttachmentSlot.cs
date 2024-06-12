@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace GameTime.Models
+namespace GameTime.Models.Items
 {
     public class AttachmentSlot
     {

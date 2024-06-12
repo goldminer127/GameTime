@@ -1,5 +1,6 @@
 ﻿using System;
-namespace GameTime.Models
+
+namespace GameTime.Models.Items
 {
     public class Attachment : Item
     {

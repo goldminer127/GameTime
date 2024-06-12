@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using System;
+using GameTime.MultiplayerSessionModels.Enums;
+using System.Diagnostics.Metrics;
 
 namespace GameTime.MinesweeperModels
 {
@@ -8,46 +10,40 @@ namespace GameTime.MinesweeperModels
         public Tile[,] Board { get; private set; }
         public Difficulty Difficulty { get; private set; }
         public int TotalFlags { get; private set; }
-        public int Status { get; set; } = 0; //0 == ongoing, 1 == loose, 2 == win, 3 == exited/timedout
+        public MinesweeperStatus Status { get; set; } = MinesweeperStatus.Ongoing;
         private int TotalMines { get; set; }
         private int FlaggedMines { get; set; }
         //Does not include label row and column
-        public MinesweeperBoard(int length, int height, Difficulty difficulty)
+        public MinesweeperBoard(int length, int height, Difficulty difficulty, string firstTile)
         {
             Difficulty = difficulty;
             TotalMines = (int)difficulty;
-            GenerateBoard(length, height);
+            GenerateBoard(length, height, firstTile);
         }
-        public MinesweeperBoard(int length, int height, int totalMines)
+        public MinesweeperBoard(int length, int height, int totalMines, string firstTile)
         {
             Difficulty = Difficulty.Random;
             TotalMines = totalMines;
             TotalFlags = (int)(totalMines * 1.5);
-            GenerateBoard(length, height);
+            GenerateBoard(length, height, firstTile);
         }
-        private void GenerateBoard(int length, int height)
+        private void GenerateBoard(int length, int height, string firstTile)
         {
             Board = new Tile[length,height];
             for (int row = 0; row < length; row++)
-            {
                 for(int col = 0; col < height; col++)
-                {
                     Board[row, col] = new Tile();
-                }
-            }
-            PlaceMines(length, height);
+            PlaceMines(length, height, firstTile);
         }
-        private void PlaceMines(int length, int height)
+        private void PlaceMines(int length, int height, string firstTile)
         {
             Random random = new Random();
             for(int i = 0; i < TotalMines; i++)
             {
                 var row = random.Next(0, length);
                 var col = random.Next(0, height);
-                if (Board[row, col].IsMine)
-                {
+                if (Board[row, col].IsMine || row == (firstTile[0] - 65) && col == Int32.Parse(firstTile[1].ToString()))
                     i--;
-                }
                 else
                 {
                     Board[row, col].SetMine().SetSymbol('@');
@@ -58,23 +54,15 @@ namespace GameTime.MinesweeperModels
         private void CalculateMines(int row, int col)
         {
             for(int r = -1; r < 2; r++)
-            {
                 for(int c = -1; c < 2 && (row + r) >= 0 && (row + r) < Board.GetLength(0); c++)
-                {
                     if((col + c) >= 0 && (col + c) < Board.GetLength(1))
-                    {
                         if(Board[row + r, col + c].Symbol == ' ' && !Board[row + r, col + c].IsMine)
-                        {
                             Board[row + r, col + c].SetSymbol('1');
-                        }
                         else if(!Board[row + r, col + c].IsMine)
                         {
                             var newSymbol = Board[row + r, col + c].Symbol + 1;
                             Board[row + r, col + c].SetSymbol((char)newSymbol);
                         }
-                    }
-                }
-            }
         }
         public MinesweeperBoard FlagTile(char letter, char num)
         {
@@ -86,14 +74,10 @@ namespace GameTime.MinesweeperModels
                 Board[x, y].SetFlagged();
                 FlaggedMines++;
                 if(FlaggedMines == TotalMines)
-                {
-                    Status = 2;
-                }
+                    Status = MinesweeperStatus.Win;
             }
             else
-            {
                 Board[x, y].SetFlagged();
-            }
             return this;
         }
         public MinesweeperBoard RevealTile(char letter, char num)
@@ -103,19 +87,13 @@ namespace GameTime.MinesweeperModels
             if (x >= 0 && x < Board.GetLength(0) && y >= 0 && y < Board.GetLength(1))
             {
                 if(Board[x, y].IsFlagged)
-                {
                     return this;
-                }
                 else if(Board[x, y].Symbol == ' ')
-                {
                     RevealEmpty(x, y);
-                }
                 else
                 {
                     if(Board[x, y].IsMine)
-                    {
-                        Status = 1;
-                    }
+                        Status = MinesweeperStatus.Loose;
                     Board[x, y].SetRevealed();
                 }
             }
@@ -133,16 +111,10 @@ namespace GameTime.MinesweeperModels
                     {
                         var tile = Board[row + r, col + c];
                         if (tile.Symbol == ' ')
-                        {
                             if(tile.IsHidden)
-                            {
                                 RevealEmpty(row + r, col + c);
-                            }
-                        }
                         else
-                        {
                             Board[row + r, col + c].SetRevealed();
-                        }
                     }
                 }
             }
@@ -152,9 +124,7 @@ namespace GameTime.MinesweeperModels
             string result = "``` ";
             //Generate number cords
             for(int i = 0; i < Board.GetLength(1); i++)
-            {
                 result += $" {i}";
-            }
             result += "\n";
             for(int row = 0; row < Board.GetLength(0); row++)
             {
@@ -163,17 +133,13 @@ namespace GameTime.MinesweeperModels
                 for (int col = 0; col < Board.GetLength(1); col++)
                 {
                     if (Board[row, col].IsFlagged)
-                    {
                         result += " !";
-                    }
+                    else if (Board[row, col].IsMine && Status == MinesweeperStatus.Loose)
+                        result += " @";
                     else if (Board[row, col].IsHidden)
-                    {
                         result += " #";
-                    }
                     else
-                    {
                         result += $" {Board[row, col].Symbol}";
-                    }
                 }
                 result += "\n";
             }

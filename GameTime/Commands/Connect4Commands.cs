@@ -6,6 +6,7 @@ using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Interactivity.Extensions;
 using GameTime.Connect4Models;
 using GameTime.MultiplayerSessionModels;
+using GameTime.MultiplayerSessionModels.Enums;
 
 namespace GameTime.Commands
 {
@@ -25,17 +26,19 @@ namespace GameTime.Commands
             else
             {
                 var session = Bot.GameSessions.SearchOpenPrivateSession(id);
-                if (session.Join(ctx))
+                var joinStatus = session.Join(ctx);
+                if (joinStatus == JoinStatus.Success)
                 {
                     Bot.GameSessions.UpdateSession(session);
                     await GameSearch(ctx, session, false); //never primary instance
                 }
                 else
                 {
-                    await ctx.Channel.SendMessageAsync("Could not join game");
+                    await ctx.Channel.SendMessageAsync("Could not join game, session is full.");
                 }
             }
         }
+        //Creates private session
         [Command("connect4p")]
         public async Task JoinPrivateConnect4(CommandContext ctx)
         {
@@ -47,7 +50,6 @@ namespace GameTime.Commands
             {
                 var session = new Connect4Session(true, 2);
                 session.Join(ctx);
-                Bot.GameSessions.AddSession(session);
                 await GameSearch(ctx, session, true); //always primary instance
             }
         }
@@ -65,7 +67,6 @@ namespace GameTime.Commands
                 {
                     var session = new Connect4Session(false, 2);
                     session.Join(ctx);
-                    Bot.GameSessions.AddSession(session);
                     primaryInstance = true;
                     await GameSearch(ctx, session, primaryInstance);
                 }
@@ -80,121 +81,46 @@ namespace GameTime.Commands
         }
         private async Task GameSearch(CommandContext ctx, GameSession session, bool primaryInstance)
         {
-            var message = await ctx.Channel.SendMessageAsync((session.IsPrivate && primaryInstance) ? $"Searching for player...\nId: {session.SessionId}" : "Searching for game...");
+            var message = await ctx.Channel.SendMessageAsync((session.IsPrivate && primaryInstance) ? $"Searching for player...\nId: {session.SessionId}\nRespond with \"exit\" to leave queue" : "Searching for game...\nRespond with \"exit\" to leave queue");
             while (session.GameStatus != Status.Close && session.GameStatus != Status.Exited)
             {
-                var response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromSeconds(2));
+                var response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id && msg.Content.ToLower() == "exit", TimeSpan.FromSeconds(2));
                 if (response.TimedOut)
                     session = Bot.GameSessions.GetSession(session.SessionId);
                 else
-                    session.SetStatus(Status.Exited);
+                {
+                    session.Exit(ctx.User.Id);
+                    await message.ModifyAsync("Exited queue");
+                }
             }
-            await message.DeleteAsync();
-            if(session.GameStatus != Status.Exited)
-                await TurnHandler(ctx, session, primaryInstance);
+            if (session.GameStatus != Status.Exited)
+            {
+                await message.DeleteAsync();
+                await ActionHandler(ctx, session, primaryInstance);
+            }
         }
-        private async Task TurnHandler(CommandContext ctx, GameSession session, bool primaryInstance)
+        private async Task ActionHandler(CommandContext ctx, GameSession session, bool primaryInstance)
         {
-            /*Checks are to send a single message when both players are in the same text channel. Checks in this statement
-              also alternates who to ping based on which player's turn it is. ALL MESSAGE STATEMENTS CONTAINS A CHECK WHETHER
-              TO SEND A SINGLE MESSAGE IN 1 CHANNEL OR 2 MESSAGES TO SEPARATE CHANNELS*/
-            var message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? 
-                (primaryInstance) ? 
-                    await ctx.Channel.SendMessageAsync((ctx.User.Id == session.CurrentTurn.Id) ? 
-                        $"{ctx.User.Mention} your move" : "", session.GameDisplay("No problems")) 
-                : null
-            : await ctx.Channel.SendMessageAsync((ctx.User.Id == session.CurrentTurn.Id) ? 
-                $"{ctx.User.Mention} your move" : "", session.GameDisplay("No problems"));
-            while (session.GameStatus != Status.Completed && session.GameStatus != Status.Exited)
+            var interactivity = ctx.Client.GetInteractivity();
+            while (session.GameStatus != Status.Exited || session.GameStatus == Status.Completed)
             {
-                //Allows user to exit while it isn't their turn
-                while (session.CurrentTurn.Id != ctx.User.Id && (session.GameStatus != Status.Completed && session.GameStatus != Status.Exited))
+                var response = await interactivity.WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromMinutes(1));
+                if(response.TimedOut)
+                    session.Exit(ctx.User.Id, $"{ctx.User.Username} timed out.");
+                else
                 {
-                    session = Bot.GameSessions.GetSession(session.SessionId);
-                    var response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromSeconds(1.25));
-                    if (response.TimedOut)
+                    var result = session.MakeMove(response.Result.Content.ToLower(), ctx.User.Id);
+                    if (result == MoveStatus.InvalidTurn)
                     {
-                        var waitUpdateMessage = new DiscordMessageBuilder().AddEmbed(session.Display).WithContent($"");
-                        message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(waitUpdateMessage) : null : await message.ModifyAsync(waitUpdateMessage);
-                    }
-                    else if (response.Result.Content.ToLower().Contains("exit"))
-                    {
-                        session.SetStatus(Status.Exited);
-                        session.GameStoppedDisplay($"{ctx.User.Username} conceeded");
-                    }
-                    Bot.GameSessions.UpdateSession(session);
-                }
-                if (session.GameStatus != Status.Completed && session.GameStatus != Status.Exited)
-                {
-                    var updateMessage = new DiscordMessageBuilder().AddEmbed(session.Display).WithContent($"{ctx.User.Mention} your move");
-                    message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(updateMessage) : null : await message.ModifyAsync(updateMessage);
-                    session = Bot.GameSessions.GetSession(session.SessionId);
-                    session = ActionHandler(ctx, session.SessionId, message).Result;
-                    Bot.GameSessions.UpdateSession(session);
-                    updateMessage = new DiscordMessageBuilder().AddEmbed(session.Display).WithContent($"");
-                    message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(updateMessage) : null : await message.ModifyAsync(updateMessage);
-                }
-            }
-            session = Bot.GameSessions.GetSession(session.SessionId);
-            //Clear the ping in message when game ends
-            var newMessage = new DiscordMessageBuilder().AddEmbed(session.Display);
-            message = (session.PlayersInSameChannel(ctx.Channel.Id)) ? (primaryInstance) ? await message.ModifyAsync(newMessage) : null : await message.ModifyAsync(newMessage);
-            if (primaryInstance)
-                Bot.GameSessions.RemoveSession(session.SessionId);
-        }
-        private async Task<GameSession> ActionHandler(CommandContext ctx, string sessionId, DiscordMessage message)
-        {
-            //Await for response, made this way to accept exit command from both parties
-            DSharpPlus.Interactivity.InteractivityResult<DiscordMessage> response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromSeconds(1));
-            var session = Bot.GameSessions.GetSession(sessionId);
-            for (int time = 0; time < 300 && response.TimedOut; time++)
-            {
-                //Waits 5 minutes and 1 second
-                response = await ctx.Client.GetInteractivity().WaitForMessageAsync(msg => msg.Channel == ctx.Channel && msg.Author.Id == ctx.Member.Id, TimeSpan.FromSeconds(1));
-                session = Bot.GameSessions.GetSession(sessionId);
-                //Cancel move if an opponent conceeds
-                if (session.GameStatus == Status.Completed || session.GameStatus == Status.Exited)
-                    return session;
-            }
-            //Response handler
-            session = Bot.GameSessions.GetSession(sessionId);
-            if (response.TimedOut)
-            {
-                session.GameStoppedDisplay("Session timed out.");
-                session.SetStatus(Status.Exited);
-                return session;
-            }
-            else
-            {
-                await response.Result.DeleteAsync();
-                if (response.Result.Content.ToLower().Contains("exit"))
-                {
-                    session.GameStoppedDisplay($"{ctx.User.Username} conceeded");
-                    session.SetStatus(Status.Exited);
-                    return session;
-                }
-                else if (session.CurrentTurn.Id == ctx.User.Id)
-                {
-                    var placed = session.MakeMove(response.Result.Content);
-                    if (!placed)
-                    {
-                        session.GameDisplay($"{ctx.User.Username} : {message.Content} is not a valid move");
-                        return session;
-                    }
-                    else
-                    {
-                        if (session.Winner == null)
-                        {
-                            session.GameDisplay("No problems");
-                        }
-                        else
-                        {
-                            session.EndGameDisplay(session.Winner.Id == ctx.User.Id);
-                        }
-                        return session;
+                        /*
+                        var msgBuilder = new DiscordFollowupMessageBuilder(){ 
+                                IsEphemeral = true,
+                                Content = "Not currently your turn."
+                        };
+                        */
+                        await ctx.Channel.SendMessageAsync("Not currently your turn.");
                     }
                 }
-                return session;
             }
         }
     }

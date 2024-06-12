@@ -1,19 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
+using DSharpPlus.SlashCommands;
 using GameTime.Commands;
 //using GameTime.Models; Removed temp
 using GameTime.Databases;
+using GameTime.Models;
 
 namespace GameTime
 {
     public class Bot
     {
+        private static Bot bot = null;
         public string Version { get; private set; }
         public Config Config { get; private set; }
         public static DiscordGuild HomeGuild { get; private set; }
@@ -24,16 +28,21 @@ namespace GameTime
         public static MutliplayerGameSessions GameSessions { get; private set; }
         public static void Main(string[] args)
         {
-            new Bot().Run();
+            Console.WriteLine(new DetailedMap().ToString());
+            //new Bot().Run();
         }
         //Change Version here every update
-        public Bot()
+        private Bot()
         {
             Version = "1.0.0";
         }
-        ~Bot()
+        public static Bot BotInstance()
         {
-
+            if(bot == null)
+            {
+                bot = new Bot();
+            }
+            return bot;
         }
         private void Run()
         {
@@ -123,7 +132,8 @@ namespace GameTime
             {
                 Token = Config.Token,
                 TokenType = TokenType.Bot,
-                AutoReconnect = true
+                AutoReconnect = true,
+                Intents = DiscordIntents.MessageContents | DiscordIntents.GuildMessages | DiscordIntents.Guilds
             });
             Interactivity = client.UseInteractivity(new InteractivityConfiguration
             {
@@ -138,6 +148,7 @@ namespace GameTime
                 IgnoreExtraArguments = true,
                 CaseSensitive = false
             });
+            var slash = client.UseSlashCommands();
             Client = client;
             HomeGuild = await client.GetGuildAsync(Config.HomeGuildId);
             while(HomeGuild == null)
@@ -161,7 +172,7 @@ namespace GameTime
                 else if (channels.Current.Name == "gametime-status")
                 {
                     Console.WriteLine("Status channel found, assigning channel as logging channel...");
-                    Bot.LoggingChannel = channels.Current;
+                    LoggingChannel = channels.Current;
                     Console.WriteLine("Done.");
                 }
             }
@@ -173,6 +184,7 @@ namespace GameTime
             //commands.RegisterCommands<ItemCommands>();
             commands.RegisterCommands<MinesweeperCommands>();
             commands.RegisterCommands<Connect4Commands>();
+            //slash.RegisterCommands<Connect4Commands>();
             await client.ConnectAsync();
             await Task.Delay(-1);
         }

@@ -1,4 +1,4 @@
-﻿namespace GameTime.MultiplayerSessionModels
+﻿namespace GameTime.MultiplayerSessionModels.Enums
 {
     public enum Status
     {

@@ -1,4 +1,4 @@
-﻿namespace GameTime.Models
+﻿namespace GameTime.Models.Items
 {
     public abstract class Item
     {
@@ -36,7 +36,7 @@
         //Checks if this item is the same as item. Ignores type or other details other than id
         public bool Equals(Item item)
         {
-            return item.Id == this.Id;
+            return item.Id == Id;
         }
     }
 }

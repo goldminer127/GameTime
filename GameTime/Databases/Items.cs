@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using GameTime.Models;
+using GameTime.Models.Items;
 
 namespace GameTime.Databases
 {

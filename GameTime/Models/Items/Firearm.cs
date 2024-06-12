@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
-namespace GameTime.Models
+namespace GameTime.Models.Items
 {
     public class Firearm : Item
     {
@@ -58,7 +59,7 @@ namespace GameTime.Models
         }
         public void UpdateWeapon()
         {
-            
+
         }
         //Relative modifers are calculated first, then direct modifers calculated next.
         private void SetDamage()
@@ -84,16 +85,16 @@ namespace GameTime.Models
                 MaxDamage = (int)Math.Round(BaseMaxDamage * maxRelativeModifier, MidpointRounding.ToPositiveInfinity);
                 MinDamage = (int)Math.Round(BaseMinDamage * minRelativeModifier, MidpointRounding.ToPositiveInfinity);
             }
-            
-            if(AttachmentSlots != null)
+
+            if (AttachmentSlots != null)
             {
-                foreach(var slot in AttachmentSlots)
-                { 
-                    if(!slot.IsEmpty())
+                foreach (var slot in AttachmentSlots)
+                {
+                    if (!slot.IsEmpty())
                     {
                         var attachment = slot.Attachment;
                         MaxDamage = (int)Math.Round(MaxDamage * (attachment.RelativeDamageModifier - attachment.RelativePercisionModifier), MidpointRounding.ToPositiveInfinity) + (attachment.DirectDamageModifier - attachment.DirectPercisionModifier);
-                        MinDamage = (int)Math.Round(MinDamage * (attachment.RelativeDamageModifier + attachment.RelativePercisionModifier), MidpointRounding.ToPositiveInfinity) + (attachment.DirectDamageModifier + attachment.DirectPercisionModifier);
+                        MinDamage = (int)Math.Round(MinDamage * (attachment.RelativeDamageModifier + attachment.RelativePercisionModifier), MidpointRounding.ToPositiveInfinity) + attachment.DirectDamageModifier + attachment.DirectPercisionModifier;
                     }
                 }
             }
@@ -161,7 +162,7 @@ namespace GameTime.Models
         {
             var qualityPoints = 0;
             var partPoints = 0;
-            foreach(var part in Parts)
+            foreach (var part in Parts)
             {
                 qualityPoints += (int)part.PartType * (int)part.Quality;
                 partPoints += (int)part.PartType;
@@ -193,7 +194,7 @@ namespace GameTime.Models
         public string GetPartsString()
         {
             var result = "";
-            for(int i = 0; i < Parts.Count; i++)
+            for (int i = 0; i < Parts.Count; i++)
             {
                 if (i != Parts.Count - 1)
                     result += $"{Parts[i].Name}, ";

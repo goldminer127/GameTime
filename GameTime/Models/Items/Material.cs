@@ -1,4 +1,4 @@
-﻿namespace GameTime.Models
+﻿namespace GameTime.Models.Items
 {
     public class Material
     {

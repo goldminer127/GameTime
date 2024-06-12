@@ -6,6 +6,7 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Interactivity.Extensions;
 using GameTime.Models;
+using GameTime.Models.Items;
 
 namespace GameTime.Commands
 {

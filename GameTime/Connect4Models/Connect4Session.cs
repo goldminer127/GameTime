@@ -1,156 +1,190 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using DSharpPlus.Entities;
 using DSharpPlus.CommandsNext;
 using GameTime.MultiplayerSessionModels;
 using GameTime.Databases;
+using GameTime.MultiplayerSessionModels.Enums;
+using System.Reflection.Metadata.Ecma335;
+using System.Runtime.InteropServices;
+using static System.Collections.Specialized.BitVector32;
 
 namespace GameTime.Connect4Models
 {
     public class Connect4Session : GameSession
     {
-        public override List<CommandContext> Players { get; protected set; } = new List<CommandContext>();
-        public override DiscordUser CurrentTurn { get; protected set; }
-        public override DiscordUser Winner { get; protected set; }
-        public override DiscordEmbed Display { get; protected set; }
-        public Connect4Board Board { get; protected set; } = new Connect4Board();
+        protected override int PlayerLimit { get; set; }
         public override Status GameStatus { get; protected set; } = Status.Open;
+        public override List<MinigamePlayer> Players { get; protected set; } = new List<MinigamePlayer>();
+        public override int CurrentPlayer { get; protected set; }
+        public override int Winner { get; protected set; } = -1;
+        public Connect4Board Board { get; protected set; } = new Connect4Board();
         public override string SessionId { get; protected set; }
         public override bool IsPrivate { get; protected set; }
-        public override int PlayerLimit { get; protected set; }
-        protected override int PlayerNextIndex { get; set; }
+        public override DiscordEmbed GameDisplay { get; protected set; }
+        public override DiscordMessage PreviousMessage { get; protected set; }
+        public override bool SameChannel { get; protected set; } = false;
         public Connect4Session(bool isPrivateSession)
         {
             IsPrivate = isPrivateSession;
-            SessionId = Bot.GameSessions.GenerateGameId("cn4");
+            SessionId = Bot.GameSessions.AddSession(this, "cn4");
         }
         public Connect4Session(bool isPrivateSession, short playerLimit)
         {
             IsPrivate = isPrivateSession;
             PlayerLimit = playerLimit;
-            SessionId = Bot.GameSessions.GenerateGameId("cn4");
+            SessionId = Bot.GameSessions.AddSession(this, "cn4");
         }
-        public override bool Join(CommandContext player)
+        public override JoinStatus Join(CommandContext player)
         {
             if(Players.Count < PlayerLimit)
             {
-                Players.Add(player);
+                Players.Add(new MinigamePlayer(player.User.Username, player.User.Id, player.Channel.Id));
                 Bot.GameSessions.AddPlayerInSession(player.User.Id);
                 if (Players.Count == PlayerLimit)
                     Start();
-                return true;
+                return JoinStatus.Success;
             }
-            return false;
+            return JoinStatus.PlayerLimitReached;
         }
         public override void Start()
         {
-            CurrentTurn = Players[0].User;
+            CurrentPlayer = 0;
             GameStatus = Status.Close;
+            foreach (var player in Players)
+                if (Players.Where(p => p.Channel == player.Channel).Count() > 1)
+                    SameChannel = true;
+            if (SameChannel)
+                ConstructCommonGameDisplay("No problem.");
+            else
+                ConstructGameDisplay("No problem.");
+            SendDisplays();
         }
-        public override GameSession SetStatus(Status status)
+        public override void Exit(ulong playerId, [Optional] string reason)
         {
-            GameStatus = status;
-            return this;
-        }
-        public override bool MakeMove(string args)
-        {
-            try
+            if (GameStatus == Status.Close)
             {
-                return PlaceChip(Int32.Parse(args) - 1);
+                if (SameChannel)
+                    ConstructCommonGameDisplay("No problem.", reason ?? $"{Players.Single(player => player.Id == playerId).Name} exited the game.");
+                else
+                    ConstructGameDisplay("No problem.", reason ?? $"{Players.Single(player => player.Id == playerId).Name} exited the game.");
+                SendDisplays();
             }
-            catch
+            GameStatus = Status.Exited;
+            CloseGame();
+        }
+        protected override void CloseGame()
+        {
+            for (int i = 0; i < Players.Count; i++)
+                Bot.GameSessions.RemovePlayerInSession(Players[i].Id);
+            Bot.GameSessions.RemoveSession(this);
+        }
+        public override MoveStatus MakeMove(string args, ulong playerId)
+        {
+            if (args != "exit" && Players[CurrentPlayer].Id != playerId)
+                return MoveStatus.InvalidTurn;
+            else if (args == "exit")
             {
-                return false;
+                Exit(playerId);
+                return MoveStatus.Success;
+            }
+            else
+            {
+                try
+                {
+                    var result = PlaceChip(Int32.Parse(args) - 1);
+                    if (result == MoveStatus.Success)
+                        TurnHandler();
+                    if (SameChannel)
+                        ConstructCommonGameDisplay((result == MoveStatus.InvalidMove) ? $"Attempted move {args} by {Players[CurrentPlayer].Name} was invalid." : "No problem.");
+                    else
+                        ConstructGameDisplay((result == MoveStatus.InvalidMove) ? $"Attempted move {args} by {Players[CurrentPlayer].Name} was invalid." : "No problem.");
+                    SendDisplays();
+                    if(Winner != -1)
+                        CloseGame();
+                    return result;
+                }
+                catch (Exception e)
+                {
+                    if (e is ArgumentNullException || e is FormatException || e is OverflowException)
+                        return MoveStatus.InvalidArgs;
+                    else
+                        return MoveStatus.MoveErrored;
+                }
             }
         }
         //Also checks for win every move
-        public bool PlaceChip(int col)
+        private MoveStatus PlaceChip(int col)
         {
-            var placed = Board.PlaceChip(PlayerNextIndex, col, out bool win);
-            if(!placed)
+            var placed = Board.PlaceChip(CurrentPlayer, col, out bool win);
+            if(win)
             {
-                return placed;
-            }
-            else if(win)
-            {
-                Winner = Players[PlayerNextIndex].User;
+                Winner = CurrentPlayer;
                 GameStatus = Status.Completed;
             }
-            UpdateTurn();
             return placed;
         }
-        private void UpdateTurn()
+        protected override void TurnHandler()
         {
-            PlayerNextIndex++;
-            if (PlayerNextIndex == Players.Count)
-            {
-                PlayerNextIndex = 0;
-            }
-            CurrentTurn = Players[PlayerNextIndex].User;
+            CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
         }
-
-        public override bool PlayersInSameChannel(ulong channelId)
+        protected override void ConstructGameDisplay(string status, [Optional]string reason)
         {
-            var totalPlayers = 0;
+            var players = "";
+            for (int i = 0; i < Players.Count; i++)
+            {
+                players += (Players[CurrentPlayer].Id == Players[i].Id && Winner == -1) ? $"**__{Players[i].Name}__**" : $"{Players[i].Name}";
+                if (i + 1 < Players.Count)
+                    players += " v ";
+            }
             for(int i = 0; i < Players.Count; i++)
             {
-                if(channelId == Players[i].Channel.Id)
-                    totalPlayers++;
+                Players[i].Display = new DiscordEmbedBuilder()
+                {
+                    Title = (Winner == -1) ? $"Connect4 {players}" : $"Connect4 {Players[Winner].Name} Won",
+                    Description = reason ?? "Enter which column you want to place your chip. The first person to get 4 chips in a row horizontally or diagonally wins. Type exit to exit anytime.",
+                    Color = (reason != null) ? DiscordColor.Yellow : (Winner == -1) ? DiscordColor.Blurple : (Winner == i) ? DiscordColor.Green : DiscordColor.Red,
+                    Footer = (reason == null) ? null : new DiscordEmbedBuilder.EmbedFooter() { Text = "You will be timed out after 1 minute of not making a move."}
+                }.AddField("Status", status).AddField("Board", Board.ToString()).Build();
             }
-            return totalPlayers > 1;
         }
-
-        //Display handlers
-        public override DiscordEmbed GameDisplay(string status)
+        protected override void ConstructCommonGameDisplay(string status, [Optional] string reason)
         {
             var players = "";
             for (int i = 0; i < Players.Count; i++)
             {
-                players += (CurrentTurn.Id == Players[i].User.Id) ? $"**__{Players[i].User.Username}__**" : $"{Players[i].User.Username}";
+                players += (Players[CurrentPlayer].Id == Players[i].Id && Winner == -1) ? $"**__{Players[i].Name}__**" : $"{Players[i].Name}";
                 if (i + 1 < Players.Count)
                     players += " v ";
             }
-            Display = new DiscordEmbedBuilder()
+            GameDisplay = new DiscordEmbedBuilder()
             {
-                Title = $"Connect4 {players}",
-                Description = "Enter which column you want to place your chip. The first person to get 4 chips in a row horizontally or diagonally wins. Type exit to exit anytime.",
-                Color = DiscordColor.Blurple
+                Title = (Winner == -1) ? $"Connect4 {players}" : $"Connect4 {Players[Winner].Name} Won",
+                Description = reason ?? "Enter which column you want to place your chip. The first person to get 4 chips in a row horizontally or diagonally wins. Type exit to exit anytime.",
+                Color = (reason != null) ? DiscordColor.Yellow : (Winner == -1) ? DiscordColor.Blurple : DiscordColor.Green, //Green for has winner
+                Footer = (reason == null) ? null : new DiscordEmbedBuilder.EmbedFooter() { Text = "You will be timed out after 1 minute of not making a move." }
             }.AddField("Status", status).AddField("Board", Board.ToString()).Build();
-            return Display;
         }
-        public override DiscordEmbed EndGameDisplay(bool winner)
+        protected override void SendDisplays()
         {
-            var players = "";
-            for (int i = 0; i < Players.Count; i++)
+            if(PreviousMessage != null)
             {
-                players += $"{Players[i].User.Username}";
-                if (i + 1 < Players.Count)
-                    players += " v ";
+                PreviousMessage.DeleteAsync();
+                PreviousMessage = null;
             }
-            Display = new DiscordEmbedBuilder()
-            {
-                Title = $"Connect4 {Winner.Username} Won",
-                Description = players,
-                Color = winner ? DiscordColor.Green : DiscordColor.Red
-            }.AddField("Board", Board.ToString()).Build();
-            return Display;
-        }
-        public override DiscordEmbed GameStoppedDisplay(string reason)
-        {
-            var players = "";
-            for (int i = 0; i < Players.Count; i++)
-            {
-                players += $"{Players[i].User.Username}";
-                if (i + 1 < Players.Count)
-                    players += " v ";
-            }
-            Display = new DiscordEmbedBuilder()
-            {
-                Title = $"Connect4 {players}",
-                Description = reason,
-                Color = DiscordColor.Orange
-            }.AddField("Board", Board.ToString()).Build();
-            return Display;
+            if (SameChannel)
+                PreviousMessage = Bot.Client.GetChannelAsync(Players[CurrentPlayer].Channel).Result.SendMessageAsync(GameDisplay).Result;
+            else
+                foreach (var player in Players)
+                {
+                    if (player.PreviousDisplay != null)
+                    {
+                        player.PreviousDisplay.DeleteAsync();
+                        player.PreviousDisplay = null;
+                    }
+                    player.PreviousDisplay = Bot.Client.GetChannelAsync(player.Channel).Result.SendMessageAsync(player.Display).Result;
+                }
         }
     }
 }
